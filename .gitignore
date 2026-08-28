@@ -34,7 +34,5 @@ Desktop.ini
 $RECYCLE.BIN/
 
 # Datasets
-*.zip
-mimic-iv-clinical-database-demo-2.2/
-mimic-iv-ed-demo-2.2/
+dataset/
 
