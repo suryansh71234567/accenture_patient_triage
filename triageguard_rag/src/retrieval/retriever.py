@@ -12,7 +12,7 @@ import json
 import logging
 import pickle
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import faiss
 import numpy as np
@@ -103,7 +103,7 @@ class Retriever:
     def retrieve(
         self,
         query_text: str,
-        patient_id: int,
+        patient_id: Any,
         top_k_self: int = 3,
         top_k_similar: int = 5,
     ) -> Tuple[List[Dict], List[Dict]]:
@@ -136,7 +136,13 @@ class Retriever:
             doc = self.documents[idx]
             pid = doc["metadata"].get("patient_id")
 
-            if pid == patient_id:
+            is_same_patient = (
+                pid is not None
+                and patient_id is not None
+                and str(pid).strip() == str(patient_id).strip()
+            )
+
+            if is_same_patient:
                 if len(patient_history) < top_k_self:
                     patient_history.append(doc)
             else:

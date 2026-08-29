@@ -304,6 +304,9 @@ class AgentRuntime:
             triage_simulated_patient_spec,
             admit_simulated_patient_spec,
         )
+        from triageguard_agent.tools.ingestion_tools import (
+            ingest_hospital_records_spec,
+        )
 
         specs = [
             get_patient_summary_spec(),
@@ -318,6 +321,7 @@ class AgentRuntime:
             trigger_patient_arrival_spec(),
             triage_simulated_patient_spec(),
             admit_simulated_patient_spec(),
+            ingest_hospital_records_spec(),
         ]
         for spec in specs:
             self.tool_registry.register(spec)
