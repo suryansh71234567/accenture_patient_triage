@@ -21,7 +21,7 @@ def main():
     mimic_iv_ed_dir = os.path.join(dataset_dir, 'mimic-iv-ed-demo-2.2')
     
     processed_dir = os.path.join(project_root, 'data', 'processed')
-    os.makedirs(processed_dir, exist_ok=True)
+    os.makedirs(processed_dir, exist_ok=True)   #dcmkncJBJK
     
     # 1. Load Data
     data = load_mimic_data(mimic_iv_dir, mimic_iv_ed_dir)
