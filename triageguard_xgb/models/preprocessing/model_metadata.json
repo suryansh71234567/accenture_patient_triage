@@ -1,0 +1,16 @@
+{
+    "training_date": "2026-08-29T04:02:35.730924",
+    "random_seed": 42,
+    "number_of_features": 45,
+    "targets": [
+        "icu_risk_2h",
+        "icu_risk_6h",
+        "icu_risk_12h",
+        "admission_risk"
+    ],
+    "text_embedding_model": "all-MiniLM-L6-v2",
+    "pca_dimensions": 8,
+    "train_instances": 2280,
+    "val_instances": 108,
+    "test_instances": 102
+}

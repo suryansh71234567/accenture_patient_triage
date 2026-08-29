@@ -1,0 +1,12 @@
+{
+  "patient_id": 99999002,
+  "chiefcomplaint": "severe abdominal pain",
+  "acuity": 2,
+  "heartrate": null,
+  "resprate": null,
+  "o2sat": null,
+  "sbp": 110,
+  "dbp": 70,
+  "temperature": null,
+  "pain": 9
+}

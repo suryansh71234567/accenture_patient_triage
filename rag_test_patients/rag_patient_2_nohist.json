@@ -1,0 +1,12 @@
+{
+  "patient_id": 99999001,
+  "chiefcomplaint": "shortness of breath",
+  "acuity": 3,
+  "heartrate": 98,
+  "resprate": 20,
+  "o2sat": 96,
+  "sbp": 132,
+  "dbp": 78,
+  "temperature": 98.7,
+  "pain": 3
+}

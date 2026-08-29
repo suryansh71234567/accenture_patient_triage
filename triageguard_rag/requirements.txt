@@ -1,0 +1,8 @@
+faiss-cpu
+sentence-transformers
+pydantic
+pyyaml
+python-dotenv
+httpx
+pandas
+numpy

@@ -1,0 +1,39 @@
+{
+  "departments": {
+    "ICU": {
+      "capacity": 10,
+      "occupied": 8,
+      "available": 2,
+      "status": "OPEN"
+    },
+    "CICU": {
+      "capacity": 6,
+      "occupied": 4,
+      "available": 2,
+      "status": "OPEN"
+    },
+    "ADMITTED_GEN": {
+      "capacity": 50,
+      "occupied": 38,
+      "available": 12,
+      "status": "OPEN"
+    },
+    "ED_OBS": {
+      "capacity": 20,
+      "occupied": 12,
+      "available": 8,
+      "status": "OPEN"
+    },
+    "DISCHARGE": {
+      "capacity": 999,
+      "occupied": 0,
+      "available": 999,
+      "status": "OPEN"
+    }
+  },
+  "lambda_thresholds": {
+    "normal_max": 0.70,
+    "high_load_max": 0.90
+  },
+  "stale_threshold_minutes": 30
+}

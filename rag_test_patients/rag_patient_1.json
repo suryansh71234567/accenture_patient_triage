@@ -1,0 +1,12 @@
+{
+  "patient_id": 10016742,
+  "chiefcomplaint": "chest pain and shortness of breath",
+  "acuity": 2,
+  "heartrate": 112,
+  "resprate": 22,
+  "o2sat": 94,
+  "sbp": 148,
+  "dbp": 90,
+  "temperature": 98.9,
+  "pain": 7
+}

@@ -1,0 +1,39 @@
+{
+  "patient_id": "52",
+  "subject_id": 52,
+  "age": 62,
+  "sex": "M",
+  "chiefcomplaint": "Chest pain and shortness of breath",
+  "acuity": 2,
+  "heartrate": 112,
+  "resprate": 22,
+  "o2sat": 94,
+  "sbp": 138,
+  "dbp": 88,
+  "temperature": 98.7,
+  "pain": 7,
+  "time_elapsed_minutes": 15,
+  "previous_ed_visits": 0,
+  "previous_hospital_admissions": 0,
+  "previous_icu_admissions": 0,
+  "cardiovascular_history": 0,
+  "respiratory_history": 0,
+  "renal_history": 0,
+  "diabetes_history": 0,
+  "neurological_history": 0,
+  "malignancy_history": 0,
+  "observations": [
+    {
+      "encounter_id": "E103",
+      "timestamp": "2024-01-15T08:30:00Z",
+      "type": "triage",
+      "heart_rate": 112,
+      "spo2": 94,
+      "sbp": 138,
+      "dbp": 88,
+      "resp_rate": 22,
+      "pain_score": 7,
+      "note": "Initial triage assessment"
+    }
+  ]
+}
