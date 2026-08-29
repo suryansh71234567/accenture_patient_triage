@@ -32,6 +32,63 @@ TOOL_NAME_ASSESSMENT = "run_triage_assessment"
 TOOL_NAME_XGB_EXPLAIN = "get_xgb_explanation"
 
 
+# ---------------------------------------------------------------------------
+# Shared input schema for "patient_data"
+# ---------------------------------------------------------------------------
+#
+# Field names match TriageGuardPipeline / TriageGuardPredictor's own native
+# schema exactly (see triageguard_router/combined_pipeline.py::_to_xgb_schema
+# and triageguard_xgb/src/inference/predict.py) — this is not a new schema,
+# it is the existing pipeline's already-established field vocabulary made
+# explicit to the LLM.
+#
+# Previously this was left as a bare {"type": "object"} with no properties,
+# which gave the model no blueprint for what to put inside "patient_data".
+# Under-specified nested-object schemas are a well known cause of small
+# models emitting free-formed / stringified pseudo-JSON instead of a real
+# object (observed directly: the model reconstructed field names like
+# "heart_rate"/"oxygen_saturation" from prose it had generated earlier,
+# instead of the pipeline's actual hr_current/spo2_current names, and wrapped
+# the whole thing as a string). Declaring the real properties fixes that at
+# the source, for every tool that takes patient_data — not one tool/patient.
+_PATIENT_DATA_SCHEMA: Dict[str, Any] = {
+    "type": "object",
+    "description": (
+        "Patient clinical data using TriageGuard's native field names. "
+        "Include only the fields you actually have values for — omit any "
+        "field you don't have a real value for. Never invent vitals."
+    ),
+    "properties": {
+        "patient_id": {"type": ["string", "integer"], "description": "Patient identifier."},
+        "age": {"type": "integer", "description": "Age in years."},
+        "sex": {"type": "string", "description": "'M' or 'F'."},
+        "triage_complaint": {"type": "string", "description": "Chief complaint / triage symptoms."},
+        "time_elapsed_minutes": {"type": "number", "description": "Minutes elapsed since arrival."},
+        "hr_arrival": {"type": "number", "description": "Heart rate (bpm) at arrival."},
+        "hr_current": {"type": "number", "description": "Current heart rate (bpm)."},
+        "rr_arrival": {"type": "number", "description": "Respiratory rate at arrival."},
+        "rr_current": {"type": "number", "description": "Current respiratory rate."},
+        "spo2_arrival": {"type": "number", "description": "Oxygen saturation (%) at arrival."},
+        "spo2_current": {"type": "number", "description": "Current oxygen saturation (%)."},
+        "sbp_arrival": {"type": "number", "description": "Systolic blood pressure at arrival."},
+        "sbp_current": {"type": "number", "description": "Current systolic blood pressure."},
+        "dbp_arrival": {"type": "number", "description": "Diastolic blood pressure at arrival."},
+        "dbp_current": {"type": "number", "description": "Current diastolic blood pressure."},
+        "temp_arrival": {"type": "number", "description": "Temperature at arrival."},
+        "temp_current": {"type": "number", "description": "Current temperature."},
+        "previous_ed_visits": {"type": "integer", "description": "Count of prior ED visits."},
+        "previous_hospital_admissions": {"type": "integer"},
+        "previous_icu_admissions": {"type": "integer"},
+        "cardiovascular_history": {"type": "integer", "description": "1 if present, 0 if absent/unknown."},
+        "respiratory_history": {"type": "integer"},
+        "renal_history": {"type": "integer"},
+        "diabetes_history": {"type": "integer"},
+        "neurological_history": {"type": "integer"},
+        "malignancy_history": {"type": "integer"},
+    },
+}
+
+
 def _get_pipeline():
     """Return shared TriageGuardPipeline instance (loads once)."""
     global _pipeline_instance
@@ -132,13 +189,28 @@ def get_xgb_explanation(patient_data: Dict[str, Any]) -> ToolResult:
         )
 
     try:
-        from triageguard_xgb.src.inference.predict import TriageGuardPredictor
         from pathlib import Path
         import sys
-        import os
 
-        _REPO = Path(__file__).resolve().parents[3]
-        _models_dir = _REPO / "triageguard_xgb" / "models"
+        # parents[2] = repo root (assessment_tools.py is at
+        # <repo>/triageguard_agent/tools/assessment_tools.py). The previous
+        # parents[3] resolved one directory ABOVE the repo root, which
+        # silently pointed _models_dir at a path that never existed.
+        _REPO = Path(__file__).resolve().parents[2]
+        _xgb_root = _REPO / "triageguard_xgb"
+        # predict.py imports "from src.features..." (relative to triageguard_xgb/
+        # itself, not the repo root) — same path requirement already handled by
+        # triageguard_router/combined_pipeline.py. Without this, the import
+        # below fails with "No module named 'src'" whenever this tool is used
+        # standalone (i.e. run_triage_assessment/combined_pipeline hasn't
+        # already been imported first in this process to set it up as a
+        # side effect).
+        if str(_xgb_root) not in sys.path:
+            sys.path.insert(0, str(_xgb_root))
+
+        from triageguard_xgb.src.inference.predict import TriageGuardPredictor
+
+        _models_dir = _xgb_root / "models"
 
         predictor = TriageGuardPredictor(str(_models_dir))
         xgb_out = predictor.predict(patient_data)
@@ -215,10 +287,7 @@ def run_triage_assessment_spec():
         input_schema={
             "type": "object",
             "properties": {
-                "patient_data": {
-                    "type": "object",
-                    "description": "Patient dict with vitals, demographics and complaint.",
-                },
+                "patient_data": _PATIENT_DATA_SCHEMA,
             },
             "required": ["patient_data"],
         },
@@ -241,7 +310,7 @@ def get_xgb_explanation_spec():
         input_schema={
             "type": "object",
             "properties": {
-                "patient_data": {"type": "object"},
+                "patient_data": _PATIENT_DATA_SCHEMA,
             },
             "required": ["patient_data"],
         },

@@ -31,6 +31,38 @@ TOOL_COMMIT = "commit_hospital_calibration"
 
 
 # ---------------------------------------------------------------------------
+# Shared input schema for the "update" / "validated_update" object
+# ---------------------------------------------------------------------------
+#
+# Field names match HospitalStateService.validate_update()'s own accepted
+# keys exactly (capacity, occupied, status) — this is not a new schema, it
+# is that existing validation contract made explicit to the LLM.
+#
+# Previously this was a bare {"type": "object"} with only a prose
+# description ("Fields to update: capacity, occupied, status.") and no
+# actual JSON Schema properties. An LLM tool-calling API only reliably fills
+# in fields that are declared as real schema properties — prose in a
+# description is not enough — so the model was calling
+# propose_hospital_calibration(department="ICU", update={}) every time: a
+# syntactically valid call with a structurally empty payload, which then
+# failed the tool's own "update must be a non-empty dict" check identically
+# on every retry. Declaring the real properties fixes that at the source.
+_HOSPITAL_UPDATE_SCHEMA: Dict[str, Any] = {
+    "type": "object",
+    "description": (
+        "The hospital state fields to change. Include only the field(s) "
+        "actually being changed — e.g. to set ICU occupied beds to 9, pass "
+        "{\"occupied\": 9}."
+    ),
+    "properties": {
+        "capacity": {"type": "integer", "description": "Total beds/slots for this department."},
+        "occupied": {"type": "integer", "description": "Currently occupied beds/slots."},
+        "status": {"type": "string", "description": "One of: OPEN, CLOSED, RESTRICTED."},
+    },
+}
+
+
+# ---------------------------------------------------------------------------
 # Handler: get_hospital_state
 # ---------------------------------------------------------------------------
 
@@ -226,18 +258,19 @@ def propose_hospital_calibration_spec():
     return ToolSpec(
         name=TOOL_PROPOSE,
         description=(
-            "Validate a proposed hospital state change (e.g. occupancy update, capacity change, "
+            "Validate a proposed hospital state CHANGE (e.g. occupancy update, capacity change, "
             "resource closure). Does NOT commit the change — returns a proposal for nurse confirmation. "
-            "Always call this before commit_hospital_calibration."
+            "Always call this before commit_hospital_calibration. "
+            "Only use this when the nurse is explicitly asking to CHANGE a value (e.g. 'set ICU "
+            "occupied beds to 9'). For questions about the CURRENT value (e.g. 'how many ICU beds "
+            "are free/occupied'), use get_hospital_state instead — never this tool. Do not use "
+            "this tool for any request unrelated to hospital resource capacity/occupancy/status."
         ),
         input_schema={
             "type": "object",
             "properties": {
                 "department": {"type": "string"},
-                "update": {
-                    "type": "object",
-                    "description": "Fields to update: capacity, occupied, status.",
-                },
+                "update": _HOSPITAL_UPDATE_SCHEMA,
             },
             "required": ["department", "update"],
         },
@@ -253,15 +286,19 @@ def commit_hospital_calibration_spec():
     return ToolSpec(
         name=TOOL_COMMIT,
         description=(
-            "Apply an approved hospital state update and recalculate operating mode + λ. "
+            "Apply an approved hospital state CHANGE and recalculate operating mode + λ. "
             "WRITE tool — requires human approval before execution. "
-            "Must only be called after propose_hospital_calibration + nurse confirmation."
+            "Must only be called after propose_hospital_calibration + nurse confirmation, and only "
+            "when the nurse's own request actually asked for a hospital resource capacity/occupancy/"
+            "status change. Never call this for a READ/informational request, and never call this "
+            "to substitute for a capability that does not exist (e.g. there is no patient-deletion "
+            "tool — do not call this instead)."
         ),
         input_schema={
             "type": "object",
             "properties": {
                 "department":       {"type": "string"},
-                "validated_update": {"type": "object"},
+                "validated_update": _HOSPITAL_UPDATE_SCHEMA,
             },
             "required": ["department", "validated_update"],
         },

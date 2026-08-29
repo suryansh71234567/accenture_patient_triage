@@ -163,7 +163,7 @@ class ConfirmationProtocol:
         Convenience method for use inside the runtime.
         """
         pending = self.create_pending(action_type, payload, description)
-        agent_state.set_pending(action_type, payload)
+        agent_state.set_pending(action_type, payload, pending["description"])
         logger.info("Pending confirmation set: action_type=%s", action_type)
         return pending
 

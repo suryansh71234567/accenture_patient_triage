@@ -94,8 +94,23 @@ class AgentState:
     # Pending action helpers
     # ------------------------------------------------------------------
 
-    def set_pending(self, action_type: str, payload: Dict[str, Any]) -> None:
-        self.pending_action = {"action_type": action_type, "payload": payload}
+    def set_pending(
+        self,
+        action_type: str,
+        payload: Dict[str, Any],
+        description: Optional[str] = None,
+    ) -> None:
+        """
+        description is the nurse-facing confirmation text built at proposal
+        time (e.g. by ConfirmationProtocol.create_pending). Storing it here
+        lets a later ambiguous-response re-prompt show the same description
+        again, instead of falling back to a generic placeholder.
+        """
+        self.pending_action = {
+            "action_type": action_type,
+            "payload": payload,
+            "description": description,
+        }
 
     def clear_pending(self) -> None:
         self.pending_action = None
