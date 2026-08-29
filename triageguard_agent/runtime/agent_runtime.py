@@ -297,6 +297,13 @@ class AgentRuntime:
             propose_hospital_calibration_spec,
             commit_hospital_calibration_spec,
         )
+        from triageguard_agent.tools.simulation_tools import (
+            get_live_simulation_dashboard_spec,
+            step_simulation_time_spec,
+            trigger_patient_arrival_spec,
+            triage_simulated_patient_spec,
+            admit_simulated_patient_spec,
+        )
 
         specs = [
             get_patient_summary_spec(),
@@ -306,6 +313,11 @@ class AgentRuntime:
             get_hospital_state_spec(),
             propose_hospital_calibration_spec(),
             commit_hospital_calibration_spec(),
+            get_live_simulation_dashboard_spec(),
+            step_simulation_time_spec(),
+            trigger_patient_arrival_spec(),
+            triage_simulated_patient_spec(),
+            admit_simulated_patient_spec(),
         ]
         for spec in specs:
             self.tool_registry.register(spec)
