@@ -332,7 +332,10 @@ class HospitalRecordIngestor:
         manifest_path: Optional[Path] = None,
     ) -> None:
         # Resolve paths relative to the rag root
-        _rag_root = Path(__file__).resolve().parents[3]  # triageguard_rag/
+        # This file is triageguard_rag/src/ingestion/hospital_record_ingestor.py,
+        # so parents[2] is triageguard_rag/ (parents[3] would be one directory
+        # above the repo root, which does not exist).
+        _rag_root = Path(__file__).resolve().parents[2]  # triageguard_rag/
 
         if vector_store_dir is None:
             vector_store_dir = _rag_root / _VECTOR_STORE_RELATIVE
