@@ -23,8 +23,12 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 def _format_doc(doc: Dict, label: str) -> str:
     meta = doc.get("metadata", {})
+    # Show hospital name when present (hospital-provided records);
+    # fall back to the 'source' field for existing MIMIC docs.
+    hospital = meta.get("hospital_name") or meta.get("source", "N/A")
     return (
-        f"[{label}] Stay {meta.get('stay_id', 'N/A')} | "
+        f"[{label}] Source: {hospital} | "
+        f"Stay {meta.get('stay_id', 'N/A')} | "
         f"Acuity {meta.get('acuity', 'N/A')} | "
         f"Disposition: {meta.get('disposition', 'N/A')}\n"
         f"{doc['document_text']}"

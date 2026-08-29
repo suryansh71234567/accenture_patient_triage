@@ -111,8 +111,11 @@ class RAGPipeline:
           "patient_history": [...],   # retrieved self docs
           "similar_cases":   [...],   # retrieved similar docs
         }
-        """
-        patient_id = int(patient_state.get("patient_id", -1))
+        raw_pid = patient_state.get("patient_id", -1)
+        try:
+            patient_id = int(raw_pid)
+        except (TypeError, ValueError):
+            patient_id = str(raw_pid).strip()
 
         # Build a query string from current complaint + vitals
         query = (
