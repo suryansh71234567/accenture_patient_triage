@@ -1,0 +1,40 @@
+{
+  "patient_id": "EVAL-040",
+  "subject_id": "EVAL-040",
+  "age": 32,
+  "sex": "M",
+  "chiefcomplaint": "Minor forearm laceration \u2014 5cm kitchen knife wound, bleeding controlled",
+  "acuity": 4,
+  "heartrate": 74,
+  "resprate": 14,
+  "o2sat": 99,
+  "sbp": 122,
+  "dbp": 76,
+  "temperature": 36.7,
+  "pain": 4,
+  "time_elapsed_minutes": 15,
+  "previous_ed_visits": 0,
+  "previous_hospital_admissions": 0,
+  "previous_icu_admissions": 0,
+  "cardiovascular_history": 0,
+  "respiratory_history": 0,
+  "renal_history": 0,
+  "diabetes_history": 0,
+  "neurological_history": 0,
+  "malignancy_history": 0,
+  "history_text": "No prior history.",
+  "observations": [
+    {
+      "encounter_id": "ENC-EVAL-040",
+      "timestamp": "2026-08-30T10:00:00Z",
+      "type": "triage",
+      "heart_rate": 74,
+      "spo2": 99,
+      "sbp": 122,
+      "dbp": 76,
+      "resp_rate": 14,
+      "pain_score": 4,
+      "note": "Initial triage assessment"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "patient_id": "EVAL-002",
+  "subject_id": "EVAL-002",
+  "age": 74,
+  "sex": "F",
+  "chiefcomplaint": "Unresponsive, found at home, GCS 5",
+  "acuity": 1,
+  "heartrate": 42,
+  "resprate": 6,
+  "o2sat": 82,
+  "sbp": 72,
+  "dbp": 44,
+  "temperature": 35.2,
+  "pain": 0,
+  "time_elapsed_minutes": 15,
+  "previous_ed_visits": 0,
+  "previous_hospital_admissions": 0,
+  "previous_icu_admissions": 0,
+  "cardiovascular_history": 0,
+  "respiratory_history": 0,
+  "renal_history": 0,
+  "diabetes_history": 0,
+  "neurological_history": 1,
+  "malignancy_history": 0,
+  "history_text": "History of prior stroke. Found unresponsive by family.",
+  "observations": [
+    {
+      "encounter_id": "ENC-EVAL-002",
+      "timestamp": "2026-08-30T10:00:00Z",
+      "type": "triage",
+      "heart_rate": 42,
+      "spo2": 82,
+      "sbp": 72,
+      "dbp": 44,
+      "resp_rate": 6,
+      "pain_score": 0,
+      "note": "Initial triage assessment"
+    }
+  ]
+}

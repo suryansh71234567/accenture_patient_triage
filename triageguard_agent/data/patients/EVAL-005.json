@@ -1,0 +1,40 @@
+{
+  "patient_id": "EVAL-005",
+  "subject_id": "EVAL-005",
+  "age": 58,
+  "sex": "M",
+  "chiefcomplaint": "Acute aortic dissection \u2014 tearing back pain radiating to abdomen",
+  "acuity": 1,
+  "heartrate": 108,
+  "resprate": 22,
+  "o2sat": 96,
+  "sbp": 190,
+  "dbp": 110,
+  "temperature": 37.0,
+  "pain": 10,
+  "time_elapsed_minutes": 15,
+  "previous_ed_visits": 0,
+  "previous_hospital_admissions": 1,
+  "previous_icu_admissions": 0,
+  "cardiovascular_history": 1,
+  "respiratory_history": 0,
+  "renal_history": 0,
+  "diabetes_history": 0,
+  "neurological_history": 0,
+  "malignancy_history": 0,
+  "history_text": "Hypertension poorly controlled. Marfan syndrome suspected.",
+  "observations": [
+    {
+      "encounter_id": "ENC-EVAL-005",
+      "timestamp": "2026-08-30T10:00:00Z",
+      "type": "triage",
+      "heart_rate": 108,
+      "spo2": 96,
+      "sbp": 190,
+      "dbp": 110,
+      "resp_rate": 22,
+      "pain_score": 10,
+      "note": "Initial triage assessment"
+    }
+  ]
+}

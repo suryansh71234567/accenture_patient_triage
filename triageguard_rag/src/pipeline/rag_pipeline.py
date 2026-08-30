@@ -61,10 +61,21 @@ class RAGPipeline:
             self.cfg = yaml.safe_load(f)
 
         # ── API key: env var takes precedence over yaml ────────────────────
-        self.api_key = (
+        _raw_key = (
             os.getenv("OPENROUTER_API_KEY")
             or self.cfg.get("openrouter", {}).get("api_key", "")
         )
+        # .env may store keys as a JSON array, e.g. ["sk-or-v1-...", ...]
+        # Parse it and use the first entry; fall back to using the raw string.
+        if _raw_key and _raw_key.strip().startswith("["):
+            try:
+                _keys = json.loads(_raw_key)
+                self.api_key = _keys[0] if _keys else ""
+            except (json.JSONDecodeError, IndexError):
+                self.api_key = _raw_key
+        else:
+            self.api_key = _raw_key
+
         if not self.api_key:
             raise ValueError(
                 "OpenRouter API key not found. "

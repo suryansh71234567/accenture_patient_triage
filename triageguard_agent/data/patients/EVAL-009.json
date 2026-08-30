@@ -1,0 +1,40 @@
+{
+  "patient_id": "EVAL-009",
+  "subject_id": "EVAL-009",
+  "age": 72,
+  "sex": "M",
+  "chiefcomplaint": "Hypotension and altered consciousness \u2014 BP 90/60, sepsis query",
+  "acuity": 2,
+  "heartrate": 112,
+  "resprate": 22,
+  "o2sat": 96,
+  "sbp": 90,
+  "dbp": 60,
+  "temperature": 38.9,
+  "pain": 2,
+  "time_elapsed_minutes": 15,
+  "previous_ed_visits": 3,
+  "previous_hospital_admissions": 3,
+  "previous_icu_admissions": 1,
+  "cardiovascular_history": 0,
+  "respiratory_history": 0,
+  "renal_history": 1,
+  "diabetes_history": 1,
+  "neurological_history": 0,
+  "malignancy_history": 0,
+  "history_text": "CKD stage 3, DM. Recurrent UTIs. Prior sepsis ICU admission.",
+  "observations": [
+    {
+      "encounter_id": "ENC-EVAL-009",
+      "timestamp": "2026-08-30T10:00:00Z",
+      "type": "triage",
+      "heart_rate": 112,
+      "spo2": 96,
+      "sbp": 90,
+      "dbp": 60,
+      "resp_rate": 22,
+      "pain_score": 2,
+      "note": "Initial triage assessment"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "patient_id": "EVAL-003",
+  "subject_id": "EVAL-003",
+  "age": 45,
+  "sex": "M",
+  "chiefcomplaint": "Massive haematemesis, BP falling, pallor and diaphoresis",
+  "acuity": 1,
+  "heartrate": 132,
+  "resprate": 22,
+  "o2sat": 94,
+  "sbp": 82,
+  "dbp": 52,
+  "temperature": 36.4,
+  "pain": 7,
+  "time_elapsed_minutes": 15,
+  "previous_ed_visits": 3,
+  "previous_hospital_admissions": 2,
+  "previous_icu_admissions": 1,
+  "cardiovascular_history": 0,
+  "respiratory_history": 0,
+  "renal_history": 0,
+  "diabetes_history": 0,
+  "neurological_history": 0,
+  "malignancy_history": 0,
+  "history_text": "Heavy alcohol use. Prior GI bleed with ICU admission.",
+  "observations": [
+    {
+      "encounter_id": "ENC-EVAL-003",
+      "timestamp": "2026-08-30T10:00:00Z",
+      "type": "triage",
+      "heart_rate": 132,
+      "spo2": 94,
+      "sbp": 82,
+      "dbp": 52,
+      "resp_rate": 22,
+      "pain_score": 7,
+      "note": "Initial triage assessment"
+    }
+  ]
+}

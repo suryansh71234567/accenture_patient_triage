@@ -1,0 +1,40 @@
+{
+  "patient_id": "EVAL-015",
+  "subject_id": "EVAL-015",
+  "age": 39,
+  "sex": "M",
+  "chiefcomplaint": "Severe community-acquired pneumonia, SpO2 92%, productive cough 5 days",
+  "acuity": 3,
+  "heartrate": 102,
+  "resprate": 24,
+  "o2sat": 92,
+  "sbp": 116,
+  "dbp": 72,
+  "temperature": 39.1,
+  "pain": 4,
+  "time_elapsed_minutes": 15,
+  "previous_ed_visits": 0,
+  "previous_hospital_admissions": 0,
+  "previous_icu_admissions": 0,
+  "cardiovascular_history": 0,
+  "respiratory_history": 0,
+  "renal_history": 0,
+  "diabetes_history": 0,
+  "neurological_history": 0,
+  "malignancy_history": 0,
+  "history_text": "Smoker, no prior hospital history.",
+  "observations": [
+    {
+      "encounter_id": "ENC-EVAL-015",
+      "timestamp": "2026-08-30T10:00:00Z",
+      "type": "triage",
+      "heart_rate": 102,
+      "spo2": 92,
+      "sbp": 116,
+      "dbp": 72,
+      "resp_rate": 24,
+      "pain_score": 4,
+      "note": "Initial triage assessment"
+    }
+  ]
+}

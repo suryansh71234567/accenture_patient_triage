@@ -1,0 +1,40 @@
+{
+  "patient_id": "EVAL-026",
+  "subject_id": "EVAL-026",
+  "age": 35,
+  "sex": "F",
+  "chiefcomplaint": "Migraine with aura \u2014 severe unilateral headache, photophobia, vomiting",
+  "acuity": 4,
+  "heartrate": 78,
+  "resprate": 16,
+  "o2sat": 99,
+  "sbp": 118,
+  "dbp": 74,
+  "temperature": 37.0,
+  "pain": 8,
+  "time_elapsed_minutes": 15,
+  "previous_ed_visits": 3,
+  "previous_hospital_admissions": 0,
+  "previous_icu_admissions": 0,
+  "cardiovascular_history": 0,
+  "respiratory_history": 0,
+  "renal_history": 0,
+  "diabetes_history": 0,
+  "neurological_history": 0,
+  "malignancy_history": 0,
+  "history_text": "Known migraine sufferer. No organic pathology found on MRI.",
+  "observations": [
+    {
+      "encounter_id": "ENC-EVAL-026",
+      "timestamp": "2026-08-30T10:00:00Z",
+      "type": "triage",
+      "heart_rate": 78,
+      "spo2": 99,
+      "sbp": 118,
+      "dbp": 74,
+      "resp_rate": 16,
+      "pain_score": 8,
+      "note": "Initial triage assessment"
+    }
+  ]
+}

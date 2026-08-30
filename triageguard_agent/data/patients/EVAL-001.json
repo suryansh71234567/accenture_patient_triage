@@ -1,0 +1,40 @@
+{
+  "patient_id": "EVAL-001",
+  "subject_id": "EVAL-001",
+  "age": 62,
+  "sex": "M",
+  "chiefcomplaint": "Sudden crushing chest pain, radiation to left arm, diaphoresis",
+  "acuity": 1,
+  "heartrate": 118,
+  "resprate": 28,
+  "o2sat": 88,
+  "sbp": 78,
+  "dbp": 50,
+  "temperature": 36.9,
+  "pain": 10,
+  "time_elapsed_minutes": 15,
+  "previous_ed_visits": 2,
+  "previous_hospital_admissions": 1,
+  "previous_icu_admissions": 0,
+  "cardiovascular_history": 1,
+  "respiratory_history": 0,
+  "renal_history": 0,
+  "diabetes_history": 1,
+  "neurological_history": 0,
+  "malignancy_history": 0,
+  "history_text": "Known CAD and DM. Prior NSTEMI 3 years ago.",
+  "observations": [
+    {
+      "encounter_id": "ENC-EVAL-001",
+      "timestamp": "2026-08-30T10:00:00Z",
+      "type": "triage",
+      "heart_rate": 118,
+      "spo2": 88,
+      "sbp": 78,
+      "dbp": 50,
+      "resp_rate": 28,
+      "pain_score": 10,
+      "note": "Initial triage assessment"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "patient_id": "EVAL-011",
+  "subject_id": "EVAL-011",
+  "age": 48,
+  "sex": "M",
+  "chiefcomplaint": "Inferior STEMI \u2014 chest tightening, nausea, ST elevation V2-V6",
+  "acuity": 1,
+  "heartrate": 96,
+  "resprate": 20,
+  "o2sat": 96,
+  "sbp": 118,
+  "dbp": 72,
+  "temperature": 37.0,
+  "pain": 9,
+  "time_elapsed_minutes": 15,
+  "previous_ed_visits": 0,
+  "previous_hospital_admissions": 0,
+  "previous_icu_admissions": 0,
+  "cardiovascular_history": 0,
+  "respiratory_history": 0,
+  "renal_history": 0,
+  "diabetes_history": 0,
+  "neurological_history": 0,
+  "malignancy_history": 0,
+  "history_text": "Heavy smoker. No prior cardiac history. Father had MI at 50.",
+  "observations": [
+    {
+      "encounter_id": "ENC-EVAL-011",
+      "timestamp": "2026-08-30T10:00:00Z",
+      "type": "triage",
+      "heart_rate": 96,
+      "spo2": 96,
+      "sbp": 118,
+      "dbp": 72,
+      "resp_rate": 20,
+      "pain_score": 9,
+      "note": "Initial triage assessment"
+    }
+  ]
+}

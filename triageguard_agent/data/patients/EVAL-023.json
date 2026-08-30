@@ -1,0 +1,40 @@
+{
+  "patient_id": "EVAL-023",
+  "subject_id": "EVAL-023",
+  "age": 66,
+  "sex": "F",
+  "chiefcomplaint": "Cellulitis right leg \u2014 redness spreading above knee, fever 38.7\u00b0C",
+  "acuity": 3,
+  "heartrate": 98,
+  "resprate": 18,
+  "o2sat": 97,
+  "sbp": 136,
+  "dbp": 80,
+  "temperature": 38.7,
+  "pain": 6,
+  "time_elapsed_minutes": 15,
+  "previous_ed_visits": 2,
+  "previous_hospital_admissions": 1,
+  "previous_icu_admissions": 0,
+  "cardiovascular_history": 0,
+  "respiratory_history": 0,
+  "renal_history": 0,
+  "diabetes_history": 1,
+  "neurological_history": 0,
+  "malignancy_history": 0,
+  "history_text": "DM with peripheral vascular disease. Prior cellulitis admission.",
+  "observations": [
+    {
+      "encounter_id": "ENC-EVAL-023",
+      "timestamp": "2026-08-30T10:00:00Z",
+      "type": "triage",
+      "heart_rate": 98,
+      "spo2": 97,
+      "sbp": 136,
+      "dbp": 80,
+      "resp_rate": 18,
+      "pain_score": 6,
+      "note": "Initial triage assessment"
+    }
+  ]
+}
