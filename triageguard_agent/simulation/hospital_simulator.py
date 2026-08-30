@@ -29,6 +29,61 @@ from triageguard_agent.simulation.patient_flow import (
 logger = logging.getLogger(__name__)
 
 
+def calibrated_clinical_fallback(
+    acuity: int,
+    chief_complaint: str,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """
+    Deterministic, clinically calibrated rule used when the real
+    XGBoost+RAG pipeline is unavailable (or, deliberately, by RL training —
+    see triageguard_router/policy/simulation_env.py) instead of the live,
+    network-attached pipeline, so thousands of training episodes stay fast,
+    free, and reproducible under a fixed seed. Extracted unchanged from
+    HospitalSimulator._evaluate_clinical_truth's own except-branch so both
+    callers share one definition instead of two.
+    """
+    cardiac = bool((metadata or {}).get("cardiac_hint", False))
+
+    if acuity == 1:
+        dept = "CICU" if cardiac else "ICU"
+        reasoning = "Critical acuity (Acuity 1) with severe vital instability."
+        admission_risk = 0.95
+        icu_risk = 0.85
+    elif acuity == 2:
+        dept = "CICU" if cardiac else "ICU"
+        reasoning = "High acuity (Acuity 2) requiring close monitoring."
+        admission_risk = 0.80
+        icu_risk = 0.45
+    elif acuity == 3:
+        dept = "ADMITTED_GEN"
+        reasoning = "Moderate acute condition requiring hospital admission."
+        admission_risk = 0.65
+        icu_risk = 0.15
+    elif acuity == 4:
+        dept = "ED_OBS"
+        reasoning = "Low-moderate acuity suitable for ED observation."
+        admission_risk = 0.35
+        icu_risk = 0.05
+    else:
+        dept = "DISCHARGE"
+        reasoning = "Low acuity, normal vitals, safe for discharge."
+        admission_risk = 0.10
+        icu_risk = 0.01
+
+    return {
+        "department": dept,
+        "department_reasoning": reasoning,
+        "acuity_tier": acuity,
+        "reconciled_admission_risk": admission_risk,
+        "reconciled_icu_risk": icu_risk,
+        "branches_agree": True,
+        "confidence_note": "Rule-calibrated assessment.",
+        "top_diagnoses": [chief_complaint[:30]],
+        "red_flags": ["Severe vitals instability"] if acuity <= 2 else [],
+    }
+
+
 class HospitalSimulator:
     """
     Simulates a dynamic, responsive hospital environment with continuous time progression,
@@ -397,47 +452,7 @@ class HospitalSimulator:
         except Exception as exc:
             logger.debug("TriageGuardPipeline assessment fallback: %s", exc)
 
-        # Calibrated clinical rule fallback based on patient archetype
-        acuity = patient.acuity
-        cardiac = patient.metadata.get("cardiac_hint", False)
-
-        if acuity == 1:
-            dept = "CICU" if cardiac else "ICU"
-            reasoning = "Critical acuity (Acuity 1) with severe vital instability."
-            admission_risk = 0.95
-            icu_risk = 0.85
-        elif acuity == 2:
-            dept = "CICU" if cardiac else "ICU"
-            reasoning = "High acuity (Acuity 2) requiring close monitoring."
-            admission_risk = 0.80
-            icu_risk = 0.45
-        elif acuity == 3:
-            dept = "ADMITTED_GEN"
-            reasoning = "Moderate acute condition requiring hospital admission."
-            admission_risk = 0.65
-            icu_risk = 0.15
-        elif acuity == 4:
-            dept = "ED_OBS"
-            reasoning = "Low-moderate acuity suitable for ED observation."
-            admission_risk = 0.35
-            icu_risk = 0.05
-        else:
-            dept = "DISCHARGE"
-            reasoning = "Low acuity, normal vitals, safe for discharge."
-            admission_risk = 0.10
-            icu_risk = 0.01
-
-        return {
-            "department": dept,
-            "department_reasoning": reasoning,
-            "acuity_tier": acuity,
-            "reconciled_admission_risk": admission_risk,
-            "reconciled_icu_risk": icu_risk,
-            "branches_agree": True,
-            "confidence_note": "Rule-calibrated assessment.",
-            "top_diagnoses": [patient.chief_complaint[:30]],
-            "red_flags": ["Severe vitals instability"] if acuity <= 2 else [],
-        }
+        return calibrated_clinical_fallback(patient.acuity, patient.chief_complaint, patient.metadata)
 
     # ------------------------------------------------------------------
     # Dashboard & Visualisation View

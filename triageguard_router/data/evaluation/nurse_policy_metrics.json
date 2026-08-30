@@ -1,0 +1,16 @@
+{
+  "total_reward": 801.3,
+  "n_episodes": 20,
+  "n_decisions": 361,
+  "unsafe_allocation_count": 0,
+  "resource_conflict_count": 0,
+  "avg_high_priority_wait_minutes": 15.0,
+  "department_admission_counts": {
+    "ED_OBS": 65,
+    "DISCHARGE": 29,
+    "ICU": 50,
+    "ADMITTED_GEN": 177,
+    "CICU": 40
+  },
+  "throughput": 361
+}

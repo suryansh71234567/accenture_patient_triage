@@ -1,0 +1,859 @@
+{
+  "stage": "train",
+  "random_seed": 1337,
+  "rl_config": {
+    "algorithm": "lightweight_ppo",
+    "learning_rate": 0.01,
+    "discount_factor": 0.95,
+    "clip_range": 0.2,
+    "epochs": 4,
+    "episodes": 120,
+    "steps_per_episode": 24,
+    "minutes_per_step": 15,
+    "behavior_cloning_weight": 0.5,
+    "policy_kl_weight": 0.05
+  },
+  "episode_history": [
+    {
+      "episode": 0,
+      "total_reward": 33.60000000000001,
+      "n_transitions": 16,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 1,
+      "total_reward": 38.9,
+      "n_transitions": 18,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 2,
+      "total_reward": 39.8,
+      "n_transitions": 18,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 3,
+      "total_reward": 40.199999999999996,
+      "n_transitions": 19,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 4,
+      "total_reward": 41.19999999999999,
+      "n_transitions": 19,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 5,
+      "total_reward": 40.49999999999999,
+      "n_transitions": 18,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 6,
+      "total_reward": 38.599999999999994,
+      "n_transitions": 18,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 7,
+      "total_reward": 42.79999999999999,
+      "n_transitions": 20,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 8,
+      "total_reward": 33.0,
+      "n_transitions": 15,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 9,
+      "total_reward": 42.8,
+      "n_transitions": 19,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 10,
+      "total_reward": 40.8,
+      "n_transitions": 18,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 11,
+      "total_reward": 32.6,
+      "n_transitions": 15,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 12,
+      "total_reward": 38.9,
+      "n_transitions": 18,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 13,
+      "total_reward": 40.49999999999999,
+      "n_transitions": 18,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 14,
+      "total_reward": 38.2,
+      "n_transitions": 17,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 15,
+      "total_reward": 43.79999999999999,
+      "n_transitions": 20,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 16,
+      "total_reward": 41.79999999999999,
+      "n_transitions": 19,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 17,
+      "total_reward": 41.49999999999999,
+      "n_transitions": 19,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 18,
+      "total_reward": 37.9,
+      "n_transitions": 17,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 19,
+      "total_reward": 44.79999999999999,
+      "n_transitions": 20,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 20,
+      "total_reward": 36.599999999999994,
+      "n_transitions": 17,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 21,
+      "total_reward": 39.0,
+      "n_transitions": 19,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 22,
+      "total_reward": 44.19999999999999,
+      "n_transitions": 20,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 23,
+      "total_reward": 44.79999999999999,
+      "n_transitions": 20,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 24,
+      "total_reward": 44.79999999999999,
+      "n_transitions": 20,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 25,
+      "total_reward": 38.9,
+      "n_transitions": 19,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 26,
+      "total_reward": 38.89999999999999,
+      "n_transitions": 18,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 27,
+      "total_reward": 36.9,
+      "n_transitions": 17,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 28,
+      "total_reward": 31.300000000000004,
+      "n_transitions": 14,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 29,
+      "total_reward": 49.69999999999999,
+      "n_transitions": 22,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 30,
+      "total_reward": 37.0,
+      "n_transitions": 17,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 31,
+      "total_reward": 38.5,
+      "n_transitions": 17,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 32,
+      "total_reward": 33.900000000000006,
+      "n_transitions": 15,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 33,
+      "total_reward": 31.700000000000003,
+      "n_transitions": 15,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 34,
+      "total_reward": 43.49999999999999,
+      "n_transitions": 20,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 35,
+      "total_reward": 41.49999999999999,
+      "n_transitions": 19,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 36,
+      "total_reward": 39.199999999999996,
+      "n_transitions": 18,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 37,
+      "total_reward": 46.69999999999999,
+      "n_transitions": 22,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 38,
+      "total_reward": 40.2,
+      "n_transitions": 18,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 39,
+      "total_reward": 47.39999999999999,
+      "n_transitions": 21,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 40,
+      "total_reward": 43.5,
+      "n_transitions": 20,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 41,
+      "total_reward": 46.79999999999999,
+      "n_transitions": 21,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 42,
+      "total_reward": 40.199999999999996,
+      "n_transitions": 18,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 43,
+      "total_reward": 35.5,
+      "n_transitions": 16,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 44,
+      "total_reward": 38.8,
+      "n_transitions": 18,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 45,
+      "total_reward": 44.39999999999999,
+      "n_transitions": 20,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 46,
+      "total_reward": 47.999999999999986,
+      "n_transitions": 21,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 47,
+      "total_reward": 42.8,
+      "n_transitions": 19,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 48,
+      "total_reward": 47.09999999999999,
+      "n_transitions": 22,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 49,
+      "total_reward": 40.199999999999996,
+      "n_transitions": 19,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 50,
+      "total_reward": 37.9,
+      "n_transitions": 17,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 51,
+      "total_reward": 29.300000000000004,
+      "n_transitions": 13,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 52,
+      "total_reward": 41.099999999999994,
+      "n_transitions": 18,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 53,
+      "total_reward": 45.5,
+      "n_transitions": 21,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 54,
+      "total_reward": 40.199999999999996,
+      "n_transitions": 18,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 55,
+      "total_reward": 39.099999999999994,
+      "n_transitions": 17,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 56,
+      "total_reward": 43.79999999999999,
+      "n_transitions": 21,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 57,
+      "total_reward": 40.2,
+      "n_transitions": 19,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 58,
+      "total_reward": 32.60000000000001,
+      "n_transitions": 15,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 59,
+      "total_reward": 31.700000000000003,
+      "n_transitions": 16,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 60,
+      "total_reward": 40.199999999999996,
+      "n_transitions": 18,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 61,
+      "total_reward": 40.8,
+      "n_transitions": 18,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 62,
+      "total_reward": 33.300000000000004,
+      "n_transitions": 15,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 63,
+      "total_reward": 44.89999999999999,
+      "n_transitions": 21,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 64,
+      "total_reward": 44.199999999999996,
+      "n_transitions": 20,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 65,
+      "total_reward": 27.8,
+      "n_transitions": 14,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 66,
+      "total_reward": 49.999999999999986,
+      "n_transitions": 22,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 67,
+      "total_reward": 33.2,
+      "n_transitions": 15,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 68,
+      "total_reward": 46.19999999999999,
+      "n_transitions": 21,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 69,
+      "total_reward": 36.9,
+      "n_transitions": 17,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 70,
+      "total_reward": 45.69999999999999,
+      "n_transitions": 20,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 71,
+      "total_reward": 41.6,
+      "n_transitions": 19,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 72,
+      "total_reward": 45.39999999999999,
+      "n_transitions": 20,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 73,
+      "total_reward": 40.199999999999996,
+      "n_transitions": 18,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 74,
+      "total_reward": 37.3,
+      "n_transitions": 17,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 75,
+      "total_reward": 38.5,
+      "n_transitions": 17,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 76,
+      "total_reward": 42.8,
+      "n_transitions": 19,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 77,
+      "total_reward": 35.6,
+      "n_transitions": 16,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 78,
+      "total_reward": 39.8,
+      "n_transitions": 18,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 79,
+      "total_reward": 36.5,
+      "n_transitions": 16,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 80,
+      "total_reward": 36.300000000000004,
+      "n_transitions": 17,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 81,
+      "total_reward": 35.6,
+      "n_transitions": 16,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 82,
+      "total_reward": 42.099999999999994,
+      "n_transitions": 19,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 83,
+      "total_reward": 37.2,
+      "n_transitions": 17,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 84,
+      "total_reward": 44.09999999999999,
+      "n_transitions": 20,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 85,
+      "total_reward": 40.199999999999996,
+      "n_transitions": 18,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 86,
+      "total_reward": 38.2,
+      "n_transitions": 17,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 87,
+      "total_reward": 37.9,
+      "n_transitions": 17,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 88,
+      "total_reward": 42.8,
+      "n_transitions": 19,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 89,
+      "total_reward": 36.2,
+      "n_transitions": 16,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 90,
+      "total_reward": 41.5,
+      "n_transitions": 19,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 91,
+      "total_reward": 42.5,
+      "n_transitions": 19,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 92,
+      "total_reward": 38.8,
+      "n_transitions": 17,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 93,
+      "total_reward": 40.8,
+      "n_transitions": 18,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 94,
+      "total_reward": 37.599999999999994,
+      "n_transitions": 18,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 95,
+      "total_reward": 43.89999999999999,
+      "n_transitions": 20,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 96,
+      "total_reward": 33.0,
+      "n_transitions": 15,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 97,
+      "total_reward": 39.599999999999994,
+      "n_transitions": 18,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 98,
+      "total_reward": 43.89999999999999,
+      "n_transitions": 20,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 99,
+      "total_reward": 35.0,
+      "n_transitions": 17,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 100,
+      "total_reward": 39.599999999999994,
+      "n_transitions": 18,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 101,
+      "total_reward": 41.89999999999999,
+      "n_transitions": 19,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 102,
+      "total_reward": 33.6,
+      "n_transitions": 15,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 103,
+      "total_reward": 38.8,
+      "n_transitions": 17,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 104,
+      "total_reward": 42.79999999999999,
+      "n_transitions": 19,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 105,
+      "total_reward": 33.300000000000004,
+      "n_transitions": 15,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 106,
+      "total_reward": 41.199999999999996,
+      "n_transitions": 19,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 107,
+      "total_reward": 46.099999999999994,
+      "n_transitions": 21,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 108,
+      "total_reward": 42.199999999999996,
+      "n_transitions": 19,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 109,
+      "total_reward": 46.499999999999986,
+      "n_transitions": 21,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 110,
+      "total_reward": 31.700000000000003,
+      "n_transitions": 15,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 111,
+      "total_reward": 41.599999999999994,
+      "n_transitions": 19,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 112,
+      "total_reward": 42.199999999999996,
+      "n_transitions": 20,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 113,
+      "total_reward": 44.19999999999999,
+      "n_transitions": 20,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 114,
+      "total_reward": 37.599999999999994,
+      "n_transitions": 17,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 115,
+      "total_reward": 44.49999999999999,
+      "n_transitions": 20,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 116,
+      "total_reward": 42.5,
+      "n_transitions": 20,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 117,
+      "total_reward": 40.89999999999999,
+      "n_transitions": 19,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 118,
+      "total_reward": 45.499999999999986,
+      "n_transitions": 21,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    },
+    {
+      "episode": 119,
+      "total_reward": 43.49999999999999,
+      "n_transitions": 20,
+      "unsafe": 0,
+      "resource_conflicts": 0
+    }
+  ],
+  "saved_at": "2026-08-30T02:16:07.053664+00:00"
+}

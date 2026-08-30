@@ -1,0 +1,40 @@
+number_of_nurse_scenarios: 18
+random_seed: 1337
+bayesian:
+  prior_mean: 0.0
+  prior_variance: 4.0
+  map_learning_rate: 0.05
+  map_iterations: 400
+  hessian_jitter: 0.0001
+  uncertainty_penalty_weight: 0.15
+rl:
+  algorithm: lightweight_ppo
+  learning_rate: 0.01
+  discount_factor: 0.95
+  clip_range: 0.2
+  epochs: 4
+  episodes: 120
+  steps_per_episode: 24
+  minutes_per_step: 15
+  behavior_cloning_weight: 0.5
+  policy_kl_weight: 0.05
+reward:
+  clinically_appropriate_destination: 1.0
+  successful_allocation: 0.5
+  reduced_waiting_time: 0.3
+  reasonable_utilization: 0.2
+  reduced_unnecessary_icu_usage: 0.3
+  throughput: 0.2
+  excessive_high_priority_waiting: -0.6
+  resource_conflict: -1.0
+  unsafe_downgrade: -25.0
+  failure_to_allocate_critical: -25.0
+  clinically_incompatible_allocation: -50.0
+safety:
+  invalid_action_penalty: -50.0
+  action_masking_enabled: true
+uncertainty:
+  high_uncertainty_threshold: 0.55
+  utility_std_weight: 0.5
+  feature_distance_weight: 0.5
+max_step_down_tiers: 3
