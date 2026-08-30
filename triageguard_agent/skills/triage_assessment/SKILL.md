@@ -24,7 +24,7 @@ Run the existing clinical prediction and reasoning branches for the current pati
 
 4. **Preserve outputs of both branches separately.**
    - XGBoost: admission risk, ICU risk, confidence, information completeness.
-   - RAG: disposition, escalation level, top diagnoses, red flags.
+   - RAG: urgency, evidence strength, escalation concern, top diagnoses, red flags.
 
 5. **Report structured results to the nurse.**
    - Present the reconciled routing decision.

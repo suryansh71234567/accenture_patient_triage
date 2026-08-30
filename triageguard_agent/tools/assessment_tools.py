@@ -149,8 +149,10 @@ def run_triage_assessment(patient_data: Dict[str, Any]) -> ToolResult:
         "confidence_note":           result.get("confidence_note"),
         "top_diagnoses":             result.get("top_diagnoses", []),
         "red_flags":                 result.get("red_flags", []),
-        "rag_disposition":           (result.get("structured_output") or {}).get("disposition"),
-        "rag_escalation":            (result.get("structured_output") or {}).get("escalation_level"),
+        "rag_trajectory":            (result.get("structured_output") or {}).get("trajectory_assessment"),
+        "rag_urgency":               (result.get("structured_output") or {}).get("urgency"),
+        "rag_evidence_strength":     (result.get("structured_output") or {}).get("evidence_strength"),
+        "rag_escalation_concern":    (result.get("structured_output") or {}).get("escalation_concern"),
         "rag_narrative":             result.get("rag_response", "")[:500],  # truncate for context
         # Store references for XGB explanation tool
         "_xgb_raw":                  result.get("xgb", {}),

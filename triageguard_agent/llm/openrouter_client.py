@@ -17,7 +17,12 @@ place where orchestration logic accumulates.
 Configuration
 -------------
 Reads the same environment variable convention as the rest of the project:
-    OPENROUTER_API_KEY        (required to actually call the API)
+    OPENROUTER_API_KEY        (required to actually call the API. May be a
+                               single key, or a JSON list of keys — e.g.
+                               ["sk-or-...", "sk-or-..."] — to spread the
+                               free-tier rate limit across multiple OpenRouter
+                               accounts. When a list is given, get_api_key()
+                               round-robins one key per call.)
     TRIAGEGUARD_AGENT_MODEL   (optional, defaults to a tool-calling-capable
                                OpenRouter model; independent from the RAG
                                branch's model configured in
@@ -26,9 +31,11 @@ Reads the same environment variable convention as the rest of the project:
 
 from __future__ import annotations
 
+import itertools
 import json
 import logging
 import os
+import threading
 from typing import Any, Dict, List, Optional
 
 import httpx
@@ -44,9 +51,48 @@ class OpenRouterError(RuntimeError):
     """Raised when the OpenRouter call fails or returns an unusable response."""
 
 
+_key_lock = threading.Lock()
+_key_cycle: Optional["itertools.cycle[str]"] = None
+_key_cycle_source: Optional[str] = None
+
+
+def _parse_api_keys(raw: str) -> List[str]:
+    """Accept either a single key or a JSON list of keys in OPENROUTER_API_KEY."""
+    raw = raw.strip()
+    if not raw:
+        return []
+    if raw.startswith("["):
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            logger.warning("OPENROUTER_API_KEY looks like a list but isn't valid JSON; using it as a single key.")
+            return [raw]
+        if isinstance(parsed, list):
+            return [str(k).strip() for k in parsed if str(k).strip()]
+    return [raw]
+
+
 def get_api_key() -> Optional[str]:
-    """Read the OpenRouter API key from the environment. Never hardcode it."""
-    return os.environ.get("OPENROUTER_API_KEY")
+    """
+    Read the OpenRouter API key from the environment. Never hardcode it.
+
+    OPENROUTER_API_KEY may hold several keys as a JSON list. When it does,
+    this rotates round-robin — a different key on every call — so a single
+    free-tier key's rate limit isn't hit on every request.
+    """
+    global _key_cycle, _key_cycle_source
+    raw = os.environ.get("OPENROUTER_API_KEY", "")
+    if not raw:
+        return None
+
+    with _key_lock:
+        if raw != _key_cycle_source:
+            keys = _parse_api_keys(raw)
+            if not keys:
+                return None
+            _key_cycle = itertools.cycle(keys)
+            _key_cycle_source = raw
+        return next(_key_cycle)
 
 
 def get_model() -> str:

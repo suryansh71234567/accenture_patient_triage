@@ -165,8 +165,16 @@ class AgentRuntime:
         agent_state.add_turn("user", user_input)
 
         # ── 4. Build context ──────────────────────────────────────────
+        # An explicit `active_skill` argument always wins (used by tests and
+        # any future caller-driven workflow); otherwise deterministically
+        # select the skill whose procedure matches this message, so the
+        # relevant SKILL.md is actually loaded into a real conversation
+        # turn instead of sitting unused (see MASTER_TRIAGEGUARD_KNOWLEDGE_
+        # BASE.md Part III — skills carry procedural knowledge and must not
+        # depend on the LLM re-deriving it from the system prompt alone).
+        skill_for_turn = active_skill or _select_skill_for_turn(user_input, agent_state)
         ctx = self.context_manager.build_context(
-            agent_state, self._working_memory, active_skill
+            agent_state, self._working_memory, skill_for_turn
         )
 
         logger.debug(
@@ -742,6 +750,92 @@ def _describe_pending_action(tool_name: str, kwargs: Dict[str, Any], user_input:
         action_desc = f"Proposed action: {tool_name}({kwargs})."
 
     return f'You asked: "{user_input}"\n{action_desc}'
+
+
+# ---------------------------------------------------------------------------
+# Deterministic skill selection
+# ---------------------------------------------------------------------------
+#
+# Keyword phrases drawn directly from each SKILL.md's own purpose/description
+# (triageguard_agent/skills/*/SKILL.md), not invented separately from them.
+# This is intentionally simple substring matching, not NLP intent
+# classification — same "explicit, never LLM-guessed" dispatch style as
+# _describe_pending_action below. Its job is only to get the right
+# procedural rules (e.g. "never silently change a numerical observation",
+# "escalate on branch disagreement") loaded when they are actually
+# relevant — not to perfectly classify every possible phrasing.
+#
+# Order matters: checked top-to-bottom, first match wins. patient_update is
+# checked first because it gates a WRITE action and its rules (validate
+# ranges, never guess a value) matter most when a new vital is being
+# reported.
+_VITAL_KEYWORDS = (
+    "heart rate", " hr ", "hr is", "hr=", "pulse",
+    "spo2", "o2 sat", "oxygen sat", "sat is", "sats are",
+    "blood pressure", " bp ", "bp is", "bp=",
+    "respiratory rate", "resp rate", "breathing rate",
+    "temperature", "temp is", "temp=",
+    "pain score", "pain is",
+)
+
+_SKILL_KEYWORDS: List[tuple] = [
+    ("patient_update", (
+        "is now", "just measured", "just recorded", "new reading",
+        "record that", "now reading",
+    ) + _VITAL_KEYWORDS),
+    ("routing", (
+        "route", "transfer", "move ", "send her to", "send him to",
+        "which department", "admit to", "admit her", "admit him",
+    )),
+    ("hospital_status", (
+        "hospital state", "occupancy", "capacity", "how full",
+        "beds available", "available beds", "icu beds", "bed count",
+        "operating mode", "hospital load",
+    )),
+    ("xgb_explanation", (
+        "xgboost", "feature attribution", "model attribution",
+        "what drove the", "why did the model", "why did xgboost",
+        "explain the score", "explain the risk score",
+    )),
+    ("rag_reasoning", (
+        "similar patients", "similar cases", "historical case",
+        "past patients", "trajectory", "history suggest",
+        "why is she", "why is he", "why is the risk",
+    )),
+    ("triage_assessment", (
+        "assess", "reassess", "run the assessment", "triage",
+        "icu risk", "admission risk", "how risky", "should we admit",
+    )),
+    ("human_review", (
+        "escalate", "human review", "second opinion",
+        "override", "not confident",
+    )),
+    ("patient_lookup", (
+        "tell me about", "status of", "how is patient", "how is she",
+        "how is he", "patient summary", "vitals of", "current vitals",
+    )),
+]
+
+
+def _select_skill_for_turn(user_input: str, agent_state: AgentState) -> Optional[str]:
+    """
+    Deterministically pick which SKILL.md to load for this turn's context.
+
+    Returns None (base system prompt only, unchanged behaviour) when
+    nothing matches and there is no patient already in focus to default to
+    a lookup for.
+    """
+    text = (user_input or "").lower()
+    for skill_name, keywords in _SKILL_KEYWORDS:
+        if any(kw in text for kw in keywords):
+            return skill_name
+
+    # No explicit trigger matched — if a patient is already in focus, most
+    # untriggered follow-up questions during an active session are about
+    # that patient, so default to patient_lookup rather than loading nothing.
+    if agent_state.active_patient_id:
+        return "patient_lookup"
+    return None
 
 
 def _update_focused_patient(

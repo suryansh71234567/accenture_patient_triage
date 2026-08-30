@@ -55,18 +55,6 @@ def build_prompt(
     def fmt(v, unit=""):
         return f"{v}{unit}" if v not in (None, "None", "", float("nan")) else "N/A"
 
-    current_text = (
-        f"Patient ID      : {current_state.get('patient_id', 'N/A')}\n"
-        f"Chief complaint : {fmt(current_state.get('chiefcomplaint'))}\n"
-        f"Acuity level    : {fmt(current_state.get('acuity'))}\n"
-        f"Heart rate      : {fmt(current_state.get('heartrate'), ' bpm')}\n"
-        f"Resp rate       : {fmt(current_state.get('resprate'), ' /min')}\n"
-        f"SpO2            : {fmt(current_state.get('o2sat'), '%')}\n"
-        f"BP              : {fmt(current_state.get('sbp'))}/{fmt(current_state.get('dbp'))} mmHg\n"
-        f"Temperature     : {fmt(current_state.get('temperature'), '°F')}\n"
-        f"Pain score      : {fmt(current_state.get('pain'), '/10')}\n"
-    )
-
     # ── history section ────────────────────────────────────────────────────
     if patient_history:
         history_text = "\n\n".join(
@@ -83,32 +71,71 @@ def build_prompt(
     else:
         similar_text = "No similar cases retrieved."
 
+    # Split current_text (built above) into identity vs. clinical-state
+    # lines so the prompt can present them as two distinct sections, per
+    # the Master MD's 4-section prompt structure (CURRENT PATIENT /
+    # CURRENT CLINICAL STATE / PATIENT'S RELEVANT HISTORY / SIMILAR
+    # HISTORICAL CASES).
+    identity_text = (
+        f"Patient ID      : {current_state.get('patient_id', 'N/A')}\n"
+        f"Chief complaint : {fmt(current_state.get('chiefcomplaint'))}\n"
+        f"Acuity level    : {fmt(current_state.get('acuity'))}\n"
+    )
+    clinical_state_text = (
+        f"Heart rate      : {fmt(current_state.get('heartrate'), ' bpm')}\n"
+        f"Resp rate       : {fmt(current_state.get('resprate'), ' /min')}\n"
+        f"SpO2            : {fmt(current_state.get('o2sat'), '%')}\n"
+        f"BP              : {fmt(current_state.get('sbp'))}/{fmt(current_state.get('dbp'))} mmHg\n"
+        f"Temperature     : {fmt(current_state.get('temperature'), '°F')}\n"
+        f"Pain score      : {fmt(current_state.get('pain'), '/10')}\n"
+    )
+
     # ── final prompt ───────────────────────────────────────────────────────
     prompt = f"""You are a senior emergency physician assistant helping with real-time patient triage.
 
-=== CURRENT PATIENT STATE ===
-{current_text}
+=== CURRENT PATIENT ===
+{identity_text}
 
-=== PATIENT'S OWN PRIOR ED VISITS ===
+=== CURRENT CLINICAL STATE ===
+{clinical_state_text}
+
+=== PATIENT'S RELEVANT HISTORY (this patient's own prior visits) ===
 {history_text}
 
-=== CLINICALLY SIMILAR PATIENTS (other patients) ===
+=== SIMILAR HISTORICAL CASES (other patients — how they were actually treated and what happened) ===
 {similar_text}
 
 === TASK ===
+You are doing case-based clinical reasoning: look at how similar past
+patients actually presented, how they were treated, and what happened to
+them, and use that precedent the way a physician recalls prior cases to
+reason about THIS patient's likely trajectory. Use the retrieved outcomes
+as evidence — do not withhold or ignore an outcome that is already present
+in the evidence above.
+
 Based on the current presentation and the evidence above, reason about:
-1. What are the most likely diagnoses or clinical trajectories for this patient?
-2. What immediate clinical actions or escalations should be considered?
-3. What is your estimated disposition (admit / discharge / observation)?
-4. Are there any red flags in the vitals or history that warrant urgent attention?
+1. What is the likely clinical trajectory for this patient over the next few hours?
+2. What would a meaningful change (improvement or deterioration) look like for this patient?
+3. Are there any red flags in the vitals or history that warrant urgent attention?
+4. Is escalation (e.g. ICU-level concern) warranted based on the trajectory and evidence?
+5. How strongly does the retrieved evidence above actually support this assessment, versus general clinical judgment?
 
 Be concise, structured, and clinically accurate. Cite specific vital values or historical findings where relevant.
+You are NOT deciding the final disposition or department placement — a separate
+deterministic system does that. Do not output an admit/discharge/observation decision.
 
 After your narrative, output a JSON block (and nothing after it) in exactly this format:
 ```json
 {{
-  "disposition": "admit" | "discharge" | "observation",
-  "escalation_level": "routine" | "urgent" | "emergent",
+  "trajectory_assessment": "<one or two sentence summary of the likely clinical course>",
+  "possible_next_state": "<one sentence describing what deterioration or improvement would look like>",
+  "urgency": "low" | "moderate" | "high" | "critical",
+  "evidence_strength": <integer 1-5, how strongly the retrieved history actually supports this assessment>,
+  "escalation_concern": true | false,
+  "reasoning": ["<reason 1>", "<reason 2>"],
+  "supporting_history": ["<specific evidence from this patient's own history, or empty list>"],
+  "similar_case_summary": ["<what happened in similar retrieved cases, or empty list>"],
+  "limitations": ["<what is missing or uncertain in this assessment>"],
   "top_diagnoses": ["<dx1>", "<dx2>", "<dx3>"],
   "red_flags": ["<flag1>", "<flag2>"]
 }}
@@ -173,13 +200,22 @@ def call_openrouter(
 def _parse_structured(response: str) -> dict:
     """
     Extract the trailing ```json ... ``` block from the LLM response.
-    Returns a dict with disposition, escalation_level, top_diagnoses, red_flags.
+    Returns a dict with trajectory_assessment, possible_next_state, urgency,
+    evidence_strength, escalation_concern, reasoning, supporting_history,
+    similar_case_summary, limitations, top_diagnoses, red_flags.
     Falls back to safe defaults if parsing fails.
     """
     import re
     defaults = {
-        "disposition": "unknown",
-        "escalation_level": "unknown",
+        "trajectory_assessment": "unknown",
+        "possible_next_state": "unknown",
+        "urgency": "unknown",
+        "evidence_strength": 3,
+        "escalation_concern": False,
+        "reasoning": [],
+        "supporting_history": [],
+        "similar_case_summary": [],
+        "limitations": [],
         "top_diagnoses": [],
         "red_flags": [],
     }
@@ -188,7 +224,7 @@ def _parse_structured(response: str) -> dict:
         match = re.search(r"```json\s*(\{.*?\})\s*```", response, re.DOTALL)
         if not match:
             # Also try bare JSON object at end of response
-            match = re.search(r"(\{[^{}]*\"disposition\"[^{}]*\})", response, re.DOTALL)
+            match = re.search(r"(\{[^{}]*\"urgency\"[^{}]*\})", response, re.DOTALL)
         if match:
             import json as _json
             parsed = _json.loads(match.group(1))
@@ -216,10 +252,17 @@ def reason(
       "prompt":           <str>,   # the full prompt sent to the LLM
       "response":         <str>,   # the full LLM answer (narrative + JSON block)
       "structured_output": {
-          "disposition":       "admit" | "discharge" | "observation" | "unknown",
-          "escalation_level": "routine" | "urgent" | "emergent" | "unknown",
-          "top_diagnoses":    [<str>, ...],
-          "red_flags":        [<str>, ...],
+          "trajectory_assessment": <str>,
+          "possible_next_state":   <str>,
+          "urgency":               "low" | "moderate" | "high" | "critical" | "unknown",
+          "evidence_strength":     <int 1-5>,   # LLM-rated, not a probability
+          "escalation_concern":    <bool>,
+          "reasoning":             [<str>, ...],
+          "supporting_history":    [<str>, ...],
+          "similar_case_summary":  [<str>, ...],
+          "limitations":           [<str>, ...],
+          "top_diagnoses":         [<str>, ...],
+          "red_flags":             [<str>, ...],
       }
     }
     """

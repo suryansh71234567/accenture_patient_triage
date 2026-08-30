@@ -18,7 +18,7 @@ Request human review when any of the following are true:
 4. **An operational write requires approval** — any WRITE tool result is pending confirmation.
 5. **A tool fails during a critical workflow** — any tool returns `success=False` during triage or routing.
 6. **The system cannot confidently determine the requested action** — the agent is uncertain and proceeding would be unsafe.
-7. **RAG disposition is unknown** — the LLM reasoning branch could not determine a disposition.
+7. **RAG urgency is unknown** — the LLM reasoning branch could not assess urgency.
 8. **High ICU risk with low completeness** — XGBoost ICU risk is high but data completeness is very low (< 30%).
 
 ## Procedure

@@ -5,7 +5,7 @@
   "sex": "M",
   "chiefcomplaint": "Chest pain and shortness of breath",
   "acuity": 2,
-  "heartrate": 112,
+  "heartrate": 130,
   "resprate": 22,
   "o2sat": 94,
   "sbp": 138,
@@ -34,6 +34,12 @@
       "resp_rate": 22,
       "pain_score": 7,
       "note": "Initial triage assessment"
+    },
+    {
+      "encounter_id": "E103",
+      "timestamp": "2026-08-30T12:02:44.016865+00:00",
+      "type": "heart_rate",
+      "heart_rate": 130
     }
   ]
 }
