@@ -25,6 +25,13 @@ from triageguard_agent.simulation.patient_flow import (
     SimulatedPatient,
     PatientStatus,
 )
+from triageguard_agent.simulation.presimulated_patients import (
+    WAITING_IDS_BY_SCENARIO,
+    TRIAGED_IDS_BY_SCENARIO,
+    ADMITTED_IDS_BY_SCENARIO,
+    build_simulated_patient,
+    get_patient_by_id,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -156,6 +163,68 @@ class HospitalSimulator:
             },
         )
         logger.info("Loaded scenario %s into HospitalSimulator.", scenario.name)
+
+        # Inject scenario-appropriate pre-simulated patients
+        self._inject_presimulated_patients(scenario.name)
+
+    def _inject_presimulated_patients(self, scenario_name: str) -> None:
+        """Pre-populate the queue and admitted cohort with scenario-appropriate patients."""
+        # Clear existing queue so switching scenarios gives a fresh state
+        self.patient_flow.clear()
+        t = self.events.sim_time_minutes
+        load_info = self.load_controller.recalculate(self.state_service.get_all())
+        lam = load_info.get("lambda", 0.6)
+        mode = load_info.get("operating_mode", "NORMAL")
+
+        # ── 1. Admitted patients (already in beds, using capacity) ─────
+        for pid in ADMITTED_IDS_BY_SCENARIO.get(scenario_name, []):
+            entry = get_patient_by_id(pid)
+            if not entry:
+                continue
+            patient = build_simulated_patient(entry, t)
+            op = patient.operational_decision or {}
+            dept = op.get("operational_department", "ADMITTED_GEN")
+            patient.status = PatientStatus.IN_TREATMENT
+            patient.department = dept
+            patient.elapsed_los_min = patient.expected_los_min // 3
+            self.patient_flow._admitted_cohort[patient.patient_id] = patient
+            # Reflect in bed occupancy
+            if dept != "DISCHARGE" and self.state_service.department_exists(dept):
+                curr = self.state_service.get_state(dept)
+                if curr:
+                    new_occ = min(curr["capacity"], curr["occupied"] + 1)
+                    self.state_service.apply_update(dept, {"occupied": new_occ})
+
+        # ── 2. Triaged patients (assessment done, awaiting admission) ──
+        for pid in TRIAGED_IDS_BY_SCENARIO.get(scenario_name, []):
+            entry = get_patient_by_id(pid)
+            if not entry:
+                continue
+            patient = build_simulated_patient(entry, t)
+            patient.status = PatientStatus.TRIAGED
+            # Update operational decision with current mode / lambda
+            if patient.operational_decision:
+                patient.operational_decision["operating_mode"] = mode
+                patient.operational_decision["lambda"] = lam
+            self.patient_flow.enqueue_patient(patient)
+
+        # ── 3. Waiting patients (arrived, not yet triaged) ─────────────
+        for pid in WAITING_IDS_BY_SCENARIO.get(scenario_name, []):
+            entry = get_patient_by_id(pid)
+            if not entry:
+                continue
+            patient = build_simulated_patient(entry, t)
+            patient.status = PatientStatus.ARRIVED
+            patient.clinical_assessment = None  # not yet triaged
+            patient.operational_decision = None
+            self.patient_flow.enqueue_patient(patient)
+
+        logger.info(
+            "Pre-populated scenario '%s': %d waiting, %d admitted",
+            scenario_name,
+            self.patient_flow.waiting_count,
+            self.patient_flow.admitted_count,
+        )
 
     # ------------------------------------------------------------------
     # Time Stepping & Automated Bed Release
@@ -495,8 +564,13 @@ class HospitalSimulator:
                 "lambda": load_info["lambda"],
             },
             "departments": depts_summary,
+            # Compact 5-patient preview used by dashboard card
             "waiting_queue": [p.to_dict() for p in self.patient_flow.peek_waiting(5)],
+            # Full queue with all statuses, for Live Hospital panel
+            "full_queue": [p.to_dict() for p in self.patient_flow.full_waiting_queue],
             "waiting_count": self.patient_flow.waiting_count,
+            "triaged_count": len(self.patient_flow.triaged_queue),
+            "untriaged_count": len(self.patient_flow.untriaged_queue),
             "admitted_count": self.patient_flow.admitted_count,
             "recent_events": self.events.get_recent_feed(limit=8),
         }

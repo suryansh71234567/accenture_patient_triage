@@ -146,6 +146,10 @@ def _to_rag_schema(patient: Dict) -> Dict:
         "dbp":           _get("dbp", "dbp_current", "dbp_arrival", default=None),
         "temperature":   _get("temperature", "temp_current", "temp_arrival", default=None),
         "pain":          _get("pain", default=None),
+        # Pass demographics and history through for LLM reasoning
+        "age":           _get("age", default=None),
+        "sex":           _get("sex", "gender", default=None),
+        "history_text":  _get("history_text", "past_medical_history", default=""),
     }
 
 

@@ -115,8 +115,16 @@ export interface SimulationDashboard {
     lambda: number;
   };
   departments: DashboardDepartment[];
-  waiting_queue: WaitingPatient[];
+  waiting_queue: WaitingPatient[];   // compact (5 items) for dashboard preview
+  full_queue: (WaitingPatient & {
+    status: string;
+    clinical_assessment?: Record<string, unknown> | null;
+    operational_decision?: Record<string, unknown> | null;
+    metadata?: Record<string, unknown> | null;
+  })[];                              // full queue for Live Hospital panel
   waiting_count: number;
+  triaged_count: number;
+  untriaged_count: number;
   admitted_count: number;
   recent_events: string[];
 }

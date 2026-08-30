@@ -335,6 +335,7 @@ def simulation_dashboard() -> Dict[str, Any]:
     return sim.get_live_dashboard()
 
 
+
 @app.post("/api/simulation/scenario")
 def load_scenario(req: ScenarioRequest) -> Dict[str, Any]:
     sim = get_simulator()
@@ -362,13 +363,170 @@ def trigger_arrival(target_acuity: Optional[int] = None) -> Dict[str, Any]:
     return patient.to_dict()
 
 
+class ManualArrivalRequest(BaseModel):
+    patient_id: str
+    chief_complaint: str
+    age: int
+    sex: str = "M"
+    acuity: int = 3
+    # Vitals — all optional; nurse may leave some blank
+    hr: Optional[float] = None
+    rr: Optional[float] = None
+    spo2: Optional[float] = None
+    sbp: Optional[float] = None
+    dbp: Optional[float] = None
+    temperature: Optional[float] = None
+    pain: Optional[int] = None
+
+
+@app.post("/api/simulation/manual-arrival")
+def manual_arrival(req: ManualArrivalRequest) -> Dict[str, Any]:
+    """
+    Nurse-triggered patient intake.
+
+    Logic
+    -----
+    1. Check whether patient_id exists in data/patients/<id>.json.
+       If YES  → use stored demographics, history flags, and past medical history
+                 as the baseline; overwrite vitals with whatever the nurse provided.
+       If NO   → create a fresh patient from the nurse's input only.
+    2. Build a SimulatedPatient and enqueue it into the simulation waiting queue.
+    3. Return the patient dict + a flag indicating whether history was found.
+    """
+    from triageguard_agent.simulation.patient_flow import SimulatedPatient, PatientStatus
+    from triageguard_agent.tools.patient_tools import get_patient_record
+
+    sim = get_simulator()
+
+    # ── 1. Look up stored patient record ───────────────────────────────────
+    stored = get_patient_record(req.patient_id)
+    has_history = stored is not None
+
+    # ── 2. Resolve demographics (stored record wins if it exists) ──────────
+    age = stored.get("age", req.age) if stored else req.age
+    sex = stored.get("sex", req.sex) if stored else req.sex
+
+    # Build history_text from stored record fields
+    history_parts = []
+    if stored:
+        history_flags = {
+            "cardiovascular_history": "cardiovascular disease",
+            "respiratory_history": "respiratory disease",
+            "renal_history": "chronic kidney disease",
+            "diabetes_history": "diabetes mellitus",
+            "neurological_history": "neurological condition",
+            "malignancy_history": "malignancy",
+        }
+        for flag, label in history_flags.items():
+            if stored.get(flag, 0):
+                history_parts.append(label)
+        prev_ed = stored.get("previous_ed_visits", 0)
+        prev_hosp = stored.get("previous_hospital_admissions", 0)
+        prev_icu = stored.get("previous_icu_admissions", 0)
+        if prev_ed:
+            history_parts.append(f"{prev_ed} prior ED visit(s)")
+        if prev_hosp:
+            history_parts.append(f"{prev_hosp} prior hospital admission(s)")
+        if prev_icu:
+            history_parts.append(f"{prev_icu} prior ICU admission(s)")
+
+    history_text = "Prior history: " + ", ".join(history_parts) if history_parts else ""
+
+    # ── 3. Resolve vitals (nurse input wins; stored as fallback) ───────────
+    def _vital(nurse_val, stored_key):
+        if nurse_val is not None:
+            return float(nurse_val)
+        if stored:
+            v = stored.get(stored_key)
+            if v is not None:
+                return float(v)
+        return None
+
+    vitals = {
+        "hr":   _vital(req.hr,          "heartrate"),
+        "rr":   _vital(req.rr,          "resprate"),
+        "spo2": _vital(req.spo2,        "o2sat"),
+        "sbp":  _vital(req.sbp,         "sbp"),
+        "dbp":  _vital(req.dbp,         "dbp"),
+        "temp": _vital(req.temperature, "temperature"),
+        "pain": req.pain if req.pain is not None else (stored.get("pain") if stored else 0),
+    }
+
+    # ── 4. Build and enqueue SimulatedPatient ──────────────────────────────
+    patient = SimulatedPatient(
+        patient_id=req.patient_id,
+        age=age,
+        sex=sex,
+        chief_complaint=req.chief_complaint,
+        vitals={k: v for k, v in vitals.items() if v is not None},
+        acuity=req.acuity,
+        arrival_time_min=sim.events.sim_time_minutes,
+        expected_los_min=60,
+        status=PatientStatus.ARRIVED,
+        metadata={
+            "history_text": history_text,
+            "has_history": has_history,
+            "previous_ed_visits": stored.get("previous_ed_visits", 0) if stored else 0,
+            "previous_hospital_admissions": stored.get("previous_hospital_admissions", 0) if stored else 0,
+            "previous_icu_admissions": stored.get("previous_icu_admissions", 0) if stored else 0,
+            "cardiovascular_history": stored.get("cardiovascular_history", 0) if stored else 0,
+            "respiratory_history": stored.get("respiratory_history", 0) if stored else 0,
+            "renal_history": stored.get("renal_history", 0) if stored else 0,
+            "diabetes_history": stored.get("diabetes_history", 0) if stored else 0,
+            "neurological_history": stored.get("neurological_history", 0) if stored else 0,
+            "malignancy_history": stored.get("malignancy_history", 0) if stored else 0,
+        },
+    )
+
+    sim.trigger_arrival(custom_patient=patient)
+
+    result = patient.to_dict()
+    result["has_history"] = has_history
+    result["history_text"] = history_text
+    return result
+
+
+
 @app.post("/api/simulation/triage/{patient_id}")
 def triage_simulated(patient_id: str) -> Dict[str, Any]:
     sim = get_simulator()
     patient = sim.patient_flow.get_patient(patient_id)
     if not patient:
         raise HTTPException(status_code=404, detail=f"Patient {patient_id!r} not found in simulation queue.")
+    # If the patient has pre-baked assessment, return it directly without ML pipeline
+    if patient.clinical_assessment and patient.operational_decision:
+        patient.status = __import__(
+            'triageguard_agent.simulation.patient_flow', fromlist=['PatientStatus']
+        ).PatientStatus.TRIAGED
+        return {
+            "patient_id": patient.patient_id,
+            "clinical_assessment": patient.clinical_assessment,
+            "operational_decision": patient.operational_decision,
+            "patient": patient.to_dict(),
+        }
     return sim.triage_patient(patient)
+
+
+class QueueReorderRequest(BaseModel):
+    patient_id: str
+    new_index: int
+    note: str = ""
+
+
+@app.post("/api/simulation/queue/reorder")
+def reorder_queue(req: QueueReorderRequest) -> Dict[str, Any]:
+    """Move a patient to a specific position in the waiting queue."""
+    sim = get_simulator()
+    moved = sim.patient_flow.reorder_queue(req.patient_id, req.new_index, req.note)
+    if not moved:
+        raise HTTPException(status_code=404, detail=f"Patient {req.patient_id!r} not found in queue.")
+    return {
+        "moved": True,
+        "patient_id": req.patient_id,
+        "new_index": req.new_index,
+        "note": req.note,
+        "queue_length": sim.patient_flow.waiting_count,
+    }
 
 
 class AdmitRequest(BaseModel):

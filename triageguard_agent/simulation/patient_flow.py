@@ -73,6 +73,8 @@ class SimulatedPatient:
         numeric_id_str = "".join(filter(str.isdigit, str(self.patient_id)))
         numeric_id = int(numeric_id_str) if numeric_id_str else 101
 
+        meta = self.metadata or {}
+
         return {
             "patient_id": numeric_id,
             "patient_id_str": str(self.patient_id),
@@ -106,6 +108,17 @@ class SimulatedPatient:
             "dbp": v.get("dbp", 80),
             "temperature": v.get("temp", 37.0),
             "pain": v.get("pain", 0),
+            # History fields from metadata (populated by manual intake)
+            "history_text": meta.get("history_text", ""),
+            "previous_ed_visits": meta.get("previous_ed_visits", 0),
+            "previous_hospital_admissions": meta.get("previous_hospital_admissions", 0),
+            "previous_icu_admissions": meta.get("previous_icu_admissions", 0),
+            "cardiovascular_history": meta.get("cardiovascular_history", 0),
+            "respiratory_history": meta.get("respiratory_history", 0),
+            "renal_history": meta.get("renal_history", 0),
+            "diabetes_history": meta.get("diabetes_history", 0),
+            "neurological_history": meta.get("neurological_history", 0),
+            "malignancy_history": meta.get("malignancy_history", 0),
         }
 
 
@@ -273,6 +286,33 @@ class PatientFlowManager:
         self._waiting_queue.append(patient)
         logger.info("Patient %s added to waiting queue (queue length=%d).", patient.patient_id, len(self._waiting_queue))
 
+    def reorder_queue(
+        self,
+        patient_id: str,
+        new_index: int,
+        note: str = "",
+    ) -> bool:
+        """
+        Move a patient to a specific position in the waiting queue.
+        Returns True if the move was performed, False if patient not found.
+        """
+        idx = next(
+            (i for i, p in enumerate(self._waiting_queue) if p.patient_id == patient_id),
+            None,
+        )
+        if idx is None:
+            return False
+        patient = self._waiting_queue.pop(idx)
+        new_index = max(0, min(new_index, len(self._waiting_queue)))
+        self._waiting_queue.insert(new_index, patient)
+        if note:
+            patient.metadata["queue_note"] = note
+        logger.info(
+            "Patient %s moved from position %d to %d. Note: %s",
+            patient_id, idx, new_index, note or "(none)",
+        )
+        return True
+
     def pop_next_waiting(self) -> Optional[SimulatedPatient]:
         """Fetch and remove the next patient awaiting triage/admission (FIFO)."""
         if self._waiting_queue:
@@ -282,6 +322,21 @@ class PatientFlowManager:
     def peek_waiting(self, count: int = 5) -> List[SimulatedPatient]:
         """Inspect the front of the waiting queue without removing."""
         return list(self._waiting_queue[:count])
+
+    @property
+    def full_waiting_queue(self) -> List[SimulatedPatient]:
+        """Return the complete waiting queue (all patients, all statuses)."""
+        return list(self._waiting_queue)
+
+    @property
+    def triaged_queue(self) -> List[SimulatedPatient]:
+        """Return only patients that have been triaged but not yet admitted."""
+        return [p for p in self._waiting_queue if p.status == PatientStatus.TRIAGED]
+
+    @property
+    def untriaged_queue(self) -> List[SimulatedPatient]:
+        """Return only patients that have arrived but not yet been triaged."""
+        return [p for p in self._waiting_queue if p.status == PatientStatus.ARRIVED]
 
     @property
     def waiting_count(self) -> int:
