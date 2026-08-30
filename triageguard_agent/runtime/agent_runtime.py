@@ -444,16 +444,46 @@ class AgentRuntime:
             )
 
             if result.success:
+                message = (
+                    f"Action confirmed. {action_type} executed successfully. "
+                    f"Result: {result.data}"
+                )
+                actions = [{"tool": action_type, "status": "executed", "data": result.data}]
+
+                # Observations sit ABOVE the existing clinical pipeline: a
+                # confirmed, non-duplicate observation write deterministically
+                # triggers a reassessment with the just-written state, via the
+                # same registered run_triage_assessment tool everything else
+                # uses — no pipeline logic is duplicated here.
+                if action_type == "add_patient_observation" and not (result.data or {}).get(
+                    "duplicate", False
+                ):
+                    reassessment = self._reassess_after_observation(payload, agent_state)
+                    if reassessment is not None:
+                        actions.append(
+                            {
+                                "tool": "run_triage_assessment",
+                                "status": "executed" if reassessment.success else "failed",
+                                "data": reassessment.data,
+                                "error": reassessment.error,
+                            }
+                        )
+                        if reassessment.success:
+                            message += f" Updated assessment: {reassessment.data}"
+                        else:
+                            err = reassessment.error or {}
+                            message += (
+                                f" (Reassessment after the update failed: "
+                                f"[{err.get('code')}] {err.get('message')})"
+                            )
+
                 agent_state.add_turn("user", user_input)
                 agent_state.add_turn("assistant", "Action confirmed and executed.")
                 return AgentResponse(
-                    message=(
-                        f"Action confirmed. {action_type} executed successfully. "
-                        f"Result: {result.data}"
-                    ),
+                    message=message,
                     response_type="confirmation",
                     patient_id=agent_state.active_patient_id,
-                    actions=[{"tool": action_type, "status": "executed", "data": result.data}],
+                    actions=actions,
                 )
             else:
                 err = result.error or {}
@@ -486,6 +516,38 @@ class AgentRuntime:
                 patient_id=agent_state.active_patient_id,
             )
 
+    def _reassess_after_observation(
+        self,
+        write_payload: Dict[str, Any],
+        agent_state: AgentState,
+    ) -> Optional[ToolResult]:
+        """
+        Build a fresh run_triage_assessment call from the patient record as it
+        now stands on disk (post-write) and execute it through the normal
+        run_tool path. Returns None only if the patient record can't be
+        re-read (should not happen right after a successful write; defensive).
+        """
+        from triageguard_agent.tools.patient_tools import (
+            get_patient_record,
+            build_assessment_input,
+        )
+
+        patient_id = write_payload.get("patient_id")
+        record = get_patient_record(patient_id) if patient_id else None
+        if record is None:
+            logger.error(
+                "Could not re-read patient %r for post-observation reassessment.",
+                patient_id,
+            )
+            return None
+
+        patient_data = build_assessment_input(record)
+        return self.run_tool(
+            "run_triage_assessment",
+            {"patient_data": patient_data},
+            agent_state=agent_state,
+        )
+
     # ------------------------------------------------------------------
     # Tool registration helpers
     # ------------------------------------------------------------------
@@ -495,6 +557,7 @@ class AgentRuntime:
         from triageguard_agent.tools.patient_tools import (
             get_patient_summary_spec,
             get_patient_observations_spec,
+            add_patient_observation_spec,
         )
         from triageguard_agent.tools.assessment_tools import (
             run_triage_assessment_spec,
@@ -519,6 +582,7 @@ class AgentRuntime:
         specs = [
             get_patient_summary_spec(),
             get_patient_observations_spec(),
+            add_patient_observation_spec(),
             run_triage_assessment_spec(),
             get_xgb_explanation_spec(),
             get_hospital_state_spec(),
@@ -662,6 +726,14 @@ def _describe_pending_action(tool_name: str, kwargs: Dict[str, Any], user_input:
         dept = kwargs.get("department", "unknown department")
         update = kwargs.get("validated_update", {})
         action_desc = f"Apply hospital state update to {dept}: {update}."
+    elif tool_name == "add_patient_observation":
+        pid = kwargs.get("patient_id", "unknown patient")
+        obs_type = kwargs.get("observation_type", "unknown vital")
+        value = kwargs.get("value", "unknown value")
+        action_desc = (
+            f"Record {obs_type} = {value} for patient {pid} (timestamped now) "
+            "and rerun the triage assessment with the updated value."
+        )
     elif tool_name == "admit_simulated_patient":
         pid = kwargs.get("patient_id", "unknown patient")
         dept = kwargs.get("department") or "the recommended department"
