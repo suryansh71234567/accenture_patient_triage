@@ -34,7 +34,8 @@ Design (matches the required coverage axes):
 
 from __future__ import annotations
 
-from typing import List
+import dataclasses
+from typing import Any, Dict, List, Optional
 
 from triageguard_router.policy.schema import ClinicalState, DepartmentState, NurseScenario
 
@@ -53,7 +54,10 @@ def _hospital(
     }
 
 
-def load_demonstrations() -> List[NurseScenario]:
+def _all_scenarios() -> List[NurseScenario]:
+    """The original, unmodified 18 hand-designed scenarios (Phase 2). Builds
+    a fresh list of fresh objects on every call — safe to filter/adapt the
+    result without touching shared state."""
     scenarios: List[NurseScenario] = []
 
     # ================================================================
@@ -359,3 +363,79 @@ def load_demonstrations() -> List[NurseScenario]:
     ))
 
     return scenarios
+
+
+# ---------------------------------------------------------------------------
+# Facility-adaptive selection (Step 4 — multi-hospital)
+# ---------------------------------------------------------------------------
+#
+# Reuses the 18 scenarios above verbatim — never rewrites/regenerates them.
+# A scenario is only INCLUDED if every department it actually offers as a
+# routing candidate exists at this facility (e.g. no CICU -> no CICU-ladder
+# scenarios); the departments it DOES use are then rescaled onto the
+# facility's real bed counts, preserving each scenario's clinical intent
+# (full stays full; "exactly one bed left" stays exactly one bed left).
+# No ML, no learned scenario count — the count is simply how many of the 18
+# templates are still clinically meaningful for that facility's resources.
+
+def load_demonstrations(
+    facility_config: Optional[Dict[str, Any]] = None,
+) -> List[NurseScenario]:
+    """
+    Parameters
+    ----------
+    facility_config : the target hospital's departments dict — same shape as
+        HospitalStateService.get_all() / hospital_config.json's
+        "departments" (each value needs at least a "capacity" key).
+        None (default) returns the original fixed 18-scenario baseline,
+        unchanged — every existing caller (artifacts.py, training.py,
+        tests) keeps working exactly as before.
+    """
+    scenarios = _all_scenarios()
+    if facility_config is None:
+        return scenarios
+
+    available_departments = set(facility_config.keys())
+    selected: List[NurseScenario] = []
+    for scenario in scenarios:
+        if not set(scenario.candidate_departments).issubset(available_departments):
+            continue
+        selected.append(_adapt_scenario(scenario, facility_config, available_departments))
+    return selected
+
+
+def _adapt_scenario(
+    scenario: NurseScenario,
+    facility_config: Dict[str, Any],
+    available_departments: set,
+) -> NurseScenario:
+    """Retarget one scenario's department bed counts onto the real
+    facility's capacities. Departments the facility doesn't have (e.g. a
+    baseline CICU entry on a non-cardiac scenario) are dropped rather than
+    shown to the nurse."""
+    adapted_state = {
+        dept: _rescale_department(state, int(facility_config[dept]["capacity"]))
+        for dept, state in scenario.hospital_state.items()
+        if dept in available_departments
+    }
+    return dataclasses.replace(scenario, hospital_state=adapted_state)
+
+
+def _rescale_department(original: DepartmentState, target_capacity: int) -> DepartmentState:
+    """Pure arithmetic rescale — no learned/ML component. Preserves the two
+    clinically load-bearing edge cases (fully occupied; exactly one bed
+    remaining) exactly; otherwise scales proportionally."""
+    target_capacity = max(0, int(target_capacity))
+    if target_capacity == 0:
+        return DepartmentState(capacity=0, occupied=0, status="CLOSED")
+
+    orig_available = original.capacity - original.occupied
+    if original.capacity <= 0 or orig_available <= 0:
+        new_occupied = target_capacity                # was full -> stays full
+    elif orig_available == 1:
+        new_occupied = max(0, target_capacity - 1)     # exactly one left -> stays exactly one left
+    else:
+        ratio = original.occupied / original.capacity
+        new_occupied = min(target_capacity, round(target_capacity * ratio))
+
+    return DepartmentState(capacity=target_capacity, occupied=new_occupied, status=original.status)

@@ -30,6 +30,22 @@ TOOL_PROPOSE = "propose_hospital_calibration"
 TOOL_COMMIT = "commit_hospital_calibration"
 
 
+def _resolve_state_service(hospital_id: Optional[str]):
+    """
+    Look up the HospitalStateService for `hospital_id` via the registry.
+    Omitted/None resolves to the default hospital, which is bound to the
+    same process-wide singleton these tools always used — existing
+    single-hospital behavior is unchanged when hospital_id isn't passed.
+    """
+    from triageguard_agent.hospital.hospital_registry import (
+        DEFAULT_HOSPITAL_ID,
+        get_default_registry,
+    )
+
+    registry = get_default_registry()
+    return registry.get(hospital_id or DEFAULT_HOSPITAL_ID).state_service
+
+
 # ---------------------------------------------------------------------------
 # Shared input schema for the "update" / "validated_update" object
 # ---------------------------------------------------------------------------
@@ -47,6 +63,14 @@ TOOL_COMMIT = "commit_hospital_calibration"
 # syntactically valid call with a structurally empty payload, which then
 # failed the tool's own "update must be a non-empty dict" check identically
 # on every retry. Declaring the real properties fixes that at the source.
+_HOSPITAL_ID_PROPERTY: Dict[str, Any] = {
+    "type": "string",
+    "description": (
+        "Which registered hospital this applies to. Omit to use the "
+        "default hospital."
+    ),
+}
+
 _HOSPITAL_UPDATE_SCHEMA: Dict[str, Any] = {
     "type": "object",
     "description": (
@@ -66,16 +90,21 @@ _HOSPITAL_UPDATE_SCHEMA: Dict[str, Any] = {
 # Handler: get_hospital_state
 # ---------------------------------------------------------------------------
 
-def get_hospital_state(department: Optional[str] = None) -> ToolResult:
+def get_hospital_state(
+    department: Optional[str] = None,
+    hospital_id: Optional[str] = None,
+) -> ToolResult:
     """
     Return the current operational state of the hospital (or one department).
 
     Always fetches live data — never uses a cached/static copy.
     Includes a staleness flag if the state was last updated > 30 min ago.
+
+    hospital_id : which registered hospital's state to read. Omit for the
+        default hospital (unchanged single-hospital behavior).
     """
     try:
-        from triageguard_agent.hospital.hospital_state_service import HospitalStateService
-        svc = HospitalStateService.instance()
+        svc = _resolve_state_service(hospital_id)
 
         if department:
             state = svc.get_state(department)
@@ -101,8 +130,10 @@ def get_hospital_state(department: Optional[str] = None) -> ToolResult:
                 "fetched_at": datetime.now(timezone.utc).isoformat(),
             }
 
-        return ToolResult.ok(TOOL_GET_STATE, data, metadata={"live": True})
+        return ToolResult.ok(TOOL_GET_STATE, data, metadata={"live": True, "hospital_id": hospital_id})
 
+    except KeyError as ke:
+        return ToolResult.fail(TOOL_GET_STATE, "HOSPITAL_NOT_FOUND", str(ke))
     except Exception as exc:
         logger.exception("get_hospital_state failed.")
         return ToolResult.fail(TOOL_GET_STATE, "SERVICE_ERROR", str(exc))
@@ -115,6 +146,7 @@ def get_hospital_state(department: Optional[str] = None) -> ToolResult:
 def propose_hospital_calibration(
     department: str,
     update: Dict[str, Any],
+    hospital_id: Optional[str] = None,
 ) -> ToolResult:
     """
     Validate a proposed hospital state change WITHOUT committing it.
@@ -123,6 +155,8 @@ def propose_hospital_calibration(
     ----------
     department : The department to update (e.g. "ICU").
     update     : Dict with one or more of: capacity, occupied, status.
+    hospital_id : which registered hospital this proposal applies to. Omit
+        for the default hospital.
 
     Returns a validated proposal dict that can be shown to the nurse for
     confirmation before commit_hospital_calibration is called.
@@ -141,9 +175,10 @@ def propose_hospital_calibration(
         )
 
     try:
-        from triageguard_agent.hospital.hospital_state_service import HospitalStateService
-        svc = HospitalStateService.instance()
+        svc = _resolve_state_service(hospital_id)
         validated = svc.validate_update(department, update)
+    except KeyError as ke:
+        return ToolResult.fail(TOOL_PROPOSE, "HOSPITAL_NOT_FOUND", str(ke))
     except ValueError as ve:
         return ToolResult.fail(TOOL_PROPOSE, "VALIDATION_ERROR", str(ve))
     except Exception as exc:
@@ -154,11 +189,14 @@ def propose_hospital_calibration(
         TOOL_PROPOSE,
         {
             "department": department,
+            "hospital_id": hospital_id,
             "proposed_update": validated,
             "confirmation_required": True,
             "message": (
                 f"Proposed update for {department}: {validated}. "
-                "Please confirm before committing."
+                "Please confirm before committing. "
+                "(commit_hospital_calibration must be called with this same "
+                "hospital_id.)"
             ),
         },
         metadata={"requires_confirmation": True},
@@ -172,6 +210,7 @@ def propose_hospital_calibration(
 def commit_hospital_calibration(
     department: str,
     validated_update: Dict[str, Any],
+    hospital_id: Optional[str] = None,
 ) -> ToolResult:
     """
     Apply a previously validated hospital state update.
@@ -183,6 +222,8 @@ def commit_hospital_calibration(
     ----------
     department       : Department to update.
     validated_update : The validated dict previously returned by propose.
+    hospital_id      : Must match the hospital_id the proposal was validated
+        against. Omit for the default hospital.
     """
     if not department or not validated_update:
         return ToolResult.fail(
@@ -192,10 +233,9 @@ def commit_hospital_calibration(
         )
 
     try:
-        from triageguard_agent.hospital.hospital_state_service import HospitalStateService
         from triageguard_agent.hospital.hospital_load_controller import HospitalLoadController
 
-        svc = HospitalStateService.instance()
+        svc = _resolve_state_service(hospital_id)
         svc.apply_update(department, validated_update)
 
         # Recalculate λ after state change
@@ -203,6 +243,8 @@ def commit_hospital_calibration(
         controller = HospitalLoadController()
         load_result = controller.recalculate(all_state)
 
+    except KeyError as ke:
+        return ToolResult.fail(TOOL_COMMIT, "HOSPITAL_NOT_FOUND", str(ke))
     except ValueError as ve:
         return ToolResult.fail(TOOL_COMMIT, "VALIDATION_ERROR", str(ve))
     except Exception as exc:
@@ -213,6 +255,7 @@ def commit_hospital_calibration(
         TOOL_COMMIT,
         {
             "department": department,
+            "hospital_id": hospital_id,
             "applied_update": validated_update,
             "new_state": svc.get_state(department),
             "operating_mode": load_result["operating_mode"],
@@ -243,7 +286,8 @@ def get_hospital_state_spec():
                 "department": {
                     "type": "string",
                     "description": "Optional department name (e.g. 'ICU'). Omit for full hospital state.",
-                }
+                },
+                "hospital_id": _HOSPITAL_ID_PROPERTY,
             },
         },
         handler=lambda **kwargs: get_hospital_state(**kwargs),
@@ -271,6 +315,7 @@ def propose_hospital_calibration_spec():
             "properties": {
                 "department": {"type": "string"},
                 "update": _HOSPITAL_UPDATE_SCHEMA,
+                "hospital_id": _HOSPITAL_ID_PROPERTY,
             },
             "required": ["department", "update"],
         },
@@ -299,6 +344,7 @@ def commit_hospital_calibration_spec():
             "properties": {
                 "department":       {"type": "string"},
                 "validated_update": _HOSPITAL_UPDATE_SCHEMA,
+                "hospital_id":      _HOSPITAL_ID_PROPERTY,
             },
             "required": ["department", "validated_update"],
         },

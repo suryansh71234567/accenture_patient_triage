@@ -106,9 +106,19 @@ class RoutingEnv:
     uses all three for the ablation study).
     """
 
-    def __init__(self, config: Optional[PolicyConfig] = None):
+    def __init__(self, config: Optional[PolicyConfig] = None, hospital_id: Optional[str] = None):
+        """
+        hospital_id : None (default) preserves the original behavior exactly
+            — a fresh global HospitalStateService.instance() each episode.
+            When given, each episode instead gets a FRESH HospitalStateStore
+            re-read from that hospital's own config_path (Step 2 registry)
+            — never the hospital's live/real state_service — so training
+            never mutates real operational state and stays reproducible
+            under a fixed seed, exactly like the global path.
+        """
         self.config = config or PolicyConfig()
         self.load_controller = HospitalLoadController()
+        self.hospital_id = hospital_id
 
     def run_episode(
         self,
@@ -121,8 +131,16 @@ class RoutingEnv:
         random.seed(seed)
         np.random.seed(seed)  # RLRoutingPolicy.select_action samples via np.random — must be seeded too
 
-        HospitalStateService.reset_instance()
-        simulator = HospitalSimulator(scenario=scenario_name)
+        if self.hospital_id is None:
+            HospitalStateService.reset_instance()
+            simulator = HospitalSimulator(scenario=scenario_name)
+        else:
+            from triageguard_agent.hospital.hospital_registry import get_default_registry
+            from triageguard_agent.hospital.hospital_state_store import HospitalStateStore
+
+            ctx = get_default_registry().get(self.hospital_id)
+            fresh_service = HospitalStateService(HospitalStateStore(ctx.config_path))
+            simulator = HospitalSimulator(scenario=scenario_name, state_service=fresh_service)
 
         result = EpisodeResult()
 

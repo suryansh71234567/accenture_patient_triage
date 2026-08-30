@@ -21,6 +21,15 @@ from triageguard_rag.src.embeddings.embedder import Embedder
 
 logger = logging.getLogger(__name__)
 
+# Documents ingested before hospital-scoping existed (e.g. base MIMIC
+# corpus, see prepare_documents.py) carry no "hospital_id" metadata field.
+# They are treated as belonging to the default hospital so today's
+# single-hospital behavior is unchanged when hospital_id is omitted or
+# equals "default". Must match triageguard_agent.hospital.DEFAULT_HOSPITAL_ID
+# — kept as a plain string here (not imported) so triageguard_rag has no
+# dependency on triageguard_agent.
+_DEFAULT_HOSPITAL_ID = "default"
+
 
 # ---------------------------------------------------------------------------
 # Index building
@@ -106,9 +115,20 @@ class Retriever:
         patient_id: Any,
         top_k_self: int = 3,
         top_k_similar: int = 5,
+        hospital_id: Optional[str] = None,
     ) -> Tuple[List[Dict], List[Dict]]:
         """
         Retrieve the most relevant documents.
+
+        Parameters
+        ----------
+        hospital_id : if given, only documents whose metadata "hospital_id"
+                      matches (docs with no hospital_id field are treated as
+                      belonging to "default") are eligible. If None, no
+                      hospital filtering is applied (legacy/unscoped search).
+                      This is the boundary that prevents one hospital's
+                      historical cases from ever informing another
+                      hospital's reasoning.
 
         Returns
         -------
@@ -134,6 +154,12 @@ class Retriever:
             if idx < 0 or idx >= len(self.documents):
                 continue
             doc = self.documents[idx]
+
+            if hospital_id is not None:
+                doc_hospital_id = doc["metadata"].get("hospital_id", _DEFAULT_HOSPITAL_ID)
+                if str(doc_hospital_id) != str(hospital_id):
+                    continue
+
             pid = doc["metadata"].get("patient_id")
 
             is_same_patient = (

@@ -96,10 +96,29 @@ class HospitalSimulator:
         start_hour: int = 10,
         start_minute: int = 0,
         state_service: Optional[HospitalStateService] = None,
+        hospital_id: Optional[str] = None,
     ) -> None:
+        """
+        hospital_id : resolves this simulator's state via the Step 2/3
+            HospitalRegistry (get_default_registry().get(hospital_id)) —
+            "default" (or omitted) mirrors the original single-hospital
+            behavior exactly (the same process-wide HospitalStateService
+            singleton). Ignored if `state_service` is given explicitly.
+            self.hospital_id is always set to a concrete string ("default"
+            when omitted) so it can be threaded into the clinical pipeline
+            without hospital identity silently disappearing (see
+            _evaluate_clinical_truth).
+        """
+        from triageguard_agent.hospital.hospital_registry import DEFAULT_HOSPITAL_ID
+
+        self.hospital_id = hospital_id or DEFAULT_HOSPITAL_ID
         self.events = EventEngine(start_hour=start_hour, start_minute=start_minute)
         self.patient_flow = PatientFlowManager()
-        self.state_service = state_service or HospitalStateService.instance()
+        if state_service is not None:
+            self.state_service = state_service
+        else:
+            from triageguard_agent.hospital.hospital_registry import get_default_registry
+            self.state_service = get_default_registry().get(self.hospital_id).state_service
         self.load_controller = HospitalLoadController()
 
         # Load initial scenario
@@ -446,7 +465,12 @@ class HospitalSimulator:
         """Run ML pipeline if available, or deterministic clinically calibrated fallback."""
         try:
             from triageguard_agent.tools.assessment_tools import run_triage_assessment
-            result = run_triage_assessment(patient.to_pipeline_dict())
+            # Preserve this simulator's hospital identity through to RAG
+            # retrieval + hospital-specific routing (combined_pipeline.py
+            # reads patient_data["hospital_id"]) — never silently dropped.
+            patient_dict = patient.to_pipeline_dict()
+            patient_dict.setdefault("hospital_id", self.hospital_id)
+            result = run_triage_assessment(patient_dict)
             if result.success and result.data:
                 return result.data
         except Exception as exc:

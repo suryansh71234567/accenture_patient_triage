@@ -27,7 +27,9 @@ Run the existing clinical prediction and reasoning branches for the current pati
    - RAG: urgency, evidence strength, escalation concern, top diagnoses, red flags.
 
 5. **Report structured results to the nurse.**
-   - Present the reconciled routing decision.
+   - Present `operational_department` as the actual routing recommendation — it accounts for this hospital's real bed availability, not just clinical preference.
+   - `department` is the clinical preference alone; mention it only to explain a difference (e.g. "clinically ICU, but operationally routed to ADMITTED_GEN because ICU is full").
+   - If `operational_department` is null, no safe allocation exists right now — say so explicitly and escalate (`human_review_recommended`); never substitute `department` as if it were safe.
    - Report the confidence note (which branch is dominant).
    - List red flags and top diagnoses.
    - If branches disagree, flag this explicitly and activate `human_review` skill.

@@ -138,9 +138,34 @@ def run_triage_assessment(patient_data: Dict[str, Any]) -> ToolResult:
             f"Triage pipeline failed: {exc}",
         )
 
+    # Hospital-aware operational allocation (Step 6.5) — surfaces
+    # hospital_routing's resource-aware answer without ever touching
+    # "department" (the clinical preference, unchanged by design):
+    #   * no calibrated policy for this hospital -> operational_department
+    #     falls back to the clinical department, exactly as before this
+    #     existed.
+    #   * policy found a feasible allocation -> that allocation.
+    #   * policy found NO feasible allocation (resource conflict) ->
+    #     operational_department is None and human_review_recommended is
+    #     True; callers must NOT fall back to "department" here, since
+    #     that department is exactly the one already known to be infeasible.
+    hospital_routing = result.get("hospital_routing")
+    if hospital_routing:
+        _routing = hospital_routing.get("routing", {})
+        operational_department = _routing.get("allocated_department")
+        resource_constraint = _routing.get("resource_constraint", False)
+        human_review_recommended = _routing.get("human_review_recommended", False)
+    else:
+        operational_department = result.get("department")
+        resource_constraint = False
+        human_review_recommended = False
+
     # Project to a clean output — agent never sees raw model internals
     data = {
         "department":                result.get("department"),
+        "operational_department":    operational_department,
+        "resource_constraint":       resource_constraint,
+        "human_review_recommended":  human_review_recommended,
         "department_reasoning":      result.get("department_reasoning"),
         "acuity_tier":               result.get("acuity_tier"),
         "reconciled_admission_risk": result.get("reconciled_admission_risk"),
@@ -284,7 +309,13 @@ def run_triage_assessment_spec():
             "Run the full TriageGuard clinical prediction pipeline for a patient. "
             "Executes XGBoost risk scoring, RAG historical reasoning, reconciliation, "
             "and department routing. Use when a triage assessment or reassessment is needed. "
-            "The agent must NOT modify the returned predictions."
+            "The agent must NOT modify the returned predictions. "
+            "Tell the nurse the OPERATIONAL recommendation is 'operational_department' "
+            "(the hospital-specific, resource-aware allocation), not 'department' (the "
+            "clinical preference alone) — they only differ when beds are constrained. "
+            "If 'operational_department' is null, no safe allocation exists right now: "
+            "say so explicitly and escalate per human_review_recommended, never substitute "
+            "'department' in its place."
         ),
         input_schema={
             "type": "object",

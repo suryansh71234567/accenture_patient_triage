@@ -36,6 +36,7 @@ from triageguard_xgb.src.inference.predict import TriageGuardPredictor
 from triageguard_rag.src.pipeline.rag_pipeline import RAGPipeline
 from triageguard_router.reconciler import reconcile
 from triageguard_router.router import route
+from triageguard_router.policy.live_routing import route_with_hospital_policy
 
 
 class TriageGuardPipeline:
@@ -66,7 +67,7 @@ class TriageGuardPipeline:
 
         print("TriageGuardPipeline ready.\n")
 
-    def run(self, patient: Dict) -> Dict:
+    def run(self, patient: Dict, hospital_id: Optional[str] = None) -> Dict:
         """
         Run the full pipeline for one patient.
 
@@ -74,15 +75,28 @@ class TriageGuardPipeline:
             XGBoost fields: age, sex, hr_arrival, hr_current, ... (vitals)
             RAG fields:     patient_id, chiefcomplaint, heartrate, o2sat, ...
 
+        hospital_id : scopes RAG retrieval (never mixes another hospital's
+            historical cases into this patient's reasoning) AND, since
+            Step 6, selects that hospital's own calibrated routing policy
+            + live bed state for "hospital_routing" below. Falls back to
+            patient["hospital_id"] if not given. Does not affect XGBoost
+            (shared model) or reconcile()/route() (clinical preference
+            computation — unchanged, hospital-agnostic).
+
         Returns
         -------
         {
-          "department":             str,
+          "department":             str,   # CLINICAL preference — unchanged by hospital policy
           "department_reasoning":   str,
           "acuity_tier":            int,
           "reconciled_admission_risk": float,
           "reconciled_icu_risk":    float,
           "xgb":                    dict,   # full XGBoost output
+          "hospital_id":            str | None,
+          "hospital_routing":       dict | None,  # RoutingPolicy.route() result, or None if
+                                                   # this hospital has no calibrated policy yet —
+                                                   # see routing["allocated_department"] for the
+                                                   # actual resource-aware final allocation.
           "rag_response":           str,    # free-text LLM narrative
           "structured_output":      dict,   # parsed RAG JSON
           "patient_history":        list,
@@ -103,15 +117,31 @@ class TriageGuardPipeline:
 
         # RAG inference — map field names if needed
         rag_patient = _to_rag_schema(patient)
-        rag_out = self.rag.run(rag_patient)
+        hospital_id = hospital_id or patient.get("hospital_id")
+        rag_out = self.rag.run(rag_patient, hospital_id=hospital_id)
 
-        # Reconcile + Route
+        # Reconcile + Route (clinical preference — unchanged, hospital-agnostic)
         reconciled = reconcile(xgb_out, rag_out)
         decision   = route(reconciled)
+
+        # Hospital-specific, resource-aware allocation layered on top of the
+        # unchanged clinical preference above (Step 6). None if this
+        # hospital has no calibrated policy yet — decision["department"]
+        # remains the answer in that case, exactly as before this existed.
+        hospital_routing = route_with_hospital_policy(
+            reconciled=reconciled,
+            xgb_output=xgb_out,
+            clinical_preferred_department=decision["department"],
+            hospital_id=hospital_id,
+            rag_history_count=len(rag_out.get("patient_history", []) or []),
+            rag_similar_count=len(rag_out.get("similar_cases", []) or []),
+        )
 
         return {
             **decision,
             "xgb":             xgb_out,
+            "hospital_id":     hospital_id,
+            "hospital_routing": hospital_routing,
             "rag_response":    rag_out.get("response", ""),
             "structured_output": rag_out.get("structured_output", {}),
             "patient_history": rag_out.get("patient_history", []),

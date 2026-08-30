@@ -92,7 +92,7 @@ class RAGPipeline:
 
     # -----------------------------------------------------------------------
 
-    def run(self, patient_state: Dict) -> Dict:
+    def run(self, patient_state: Dict, hospital_id: Optional[str] = None) -> Dict:
         """
         Run the full pipeline for one patient.
 
@@ -101,6 +101,10 @@ class RAGPipeline:
         patient_state : dict with keys:
             patient_id (int), chiefcomplaint (str),
             acuity, heartrate, resprate, o2sat, sbp, dbp, temperature, pain
+        hospital_id : which hospital's historical data retrieval is scoped
+            to (see Retriever.retrieve). Falls back to
+            patient_state["hospital_id"] if not given; None means
+            unscoped/legacy retrieval.
 
         Returns
         -------
@@ -127,11 +131,14 @@ class RAGPipeline:
             f"acuity {patient_state.get('acuity')}"
         )
 
+        hospital_id = hospital_id or patient_state.get("hospital_id")
+
         patient_history, similar_cases = self.retriever.retrieve(
             query_text=query,
             patient_id=patient_id,
             top_k_self=self.top_k_self,
             top_k_similar=self.top_k_sim,
+            hospital_id=hospital_id,
         )
 
         result = reason(
