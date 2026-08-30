@@ -1,0 +1,40 @@
+{
+  "patient_id": "EVAL-007",
+  "subject_id": "EVAL-007",
+  "age": 67,
+  "sex": "M",
+  "chiefcomplaint": "New onset AF with rapid ventricular response HR 148, palpitations",
+  "acuity": 2,
+  "heartrate": 148,
+  "resprate": 18,
+  "o2sat": 97,
+  "sbp": 138,
+  "dbp": 86,
+  "temperature": 37.0,
+  "pain": 3,
+  "time_elapsed_minutes": 15,
+  "previous_ed_visits": 2,
+  "previous_hospital_admissions": 1,
+  "previous_icu_admissions": 0,
+  "cardiovascular_history": 1,
+  "respiratory_history": 0,
+  "renal_history": 0,
+  "diabetes_history": 1,
+  "neurological_history": 0,
+  "malignancy_history": 0,
+  "history_text": "Known paroxysmal AF. On anticoagulation. DM and HTN.",
+  "observations": [
+    {
+      "encounter_id": "ENC-EVAL-007",
+      "timestamp": "2026-08-30T10:00:00Z",
+      "type": "triage",
+      "heart_rate": 148,
+      "spo2": 97,
+      "sbp": 138,
+      "dbp": 86,
+      "resp_rate": 18,
+      "pain_score": 3,
+      "note": "Initial triage assessment"
+    }
+  ]
+}

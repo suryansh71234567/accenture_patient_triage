@@ -1,0 +1,40 @@
+{
+  "patient_id": "EVAL-016",
+  "subject_id": "EVAL-016",
+  "age": 77,
+  "sex": "F",
+  "chiefcomplaint": "Fall at home, right hip pain, unable to weight-bear, pain 9/10",
+  "acuity": 3,
+  "heartrate": 84,
+  "resprate": 18,
+  "o2sat": 96,
+  "sbp": 148,
+  "dbp": 82,
+  "temperature": 37.0,
+  "pain": 9,
+  "time_elapsed_minutes": 15,
+  "previous_ed_visits": 2,
+  "previous_hospital_admissions": 1,
+  "previous_icu_admissions": 0,
+  "cardiovascular_history": 1,
+  "respiratory_history": 0,
+  "renal_history": 0,
+  "diabetes_history": 0,
+  "neurological_history": 0,
+  "malignancy_history": 0,
+  "history_text": "Osteoporosis, hypertension. Prior wrist fracture 2 years ago.",
+  "observations": [
+    {
+      "encounter_id": "ENC-EVAL-016",
+      "timestamp": "2026-08-30T10:00:00Z",
+      "type": "triage",
+      "heart_rate": 84,
+      "spo2": 96,
+      "sbp": 148,
+      "dbp": 82,
+      "resp_rate": 18,
+      "pain_score": 9,
+      "note": "Initial triage assessment"
+    }
+  ]
+}

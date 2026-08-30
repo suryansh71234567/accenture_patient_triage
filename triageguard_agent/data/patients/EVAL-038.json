@@ -1,0 +1,40 @@
+{
+  "patient_id": "EVAL-038",
+  "subject_id": "EVAL-038",
+  "age": 45,
+  "sex": "F",
+  "chiefcomplaint": "Panic attack \u2014 palpitations, chest tightness, hyperventilation",
+  "acuity": 4,
+  "heartrate": 102,
+  "resprate": 22,
+  "o2sat": 99,
+  "sbp": 124,
+  "dbp": 78,
+  "temperature": 37.0,
+  "pain": 3,
+  "time_elapsed_minutes": 15,
+  "previous_ed_visits": 4,
+  "previous_hospital_admissions": 0,
+  "previous_icu_admissions": 0,
+  "cardiovascular_history": 0,
+  "respiratory_history": 0,
+  "renal_history": 0,
+  "diabetes_history": 0,
+  "neurological_history": 0,
+  "malignancy_history": 0,
+  "history_text": "Anxiety disorder. 4 prior ED visits with same presentation.",
+  "observations": [
+    {
+      "encounter_id": "ENC-EVAL-038",
+      "timestamp": "2026-08-30T10:00:00Z",
+      "type": "triage",
+      "heart_rate": 102,
+      "spo2": 99,
+      "sbp": 124,
+      "dbp": 78,
+      "resp_rate": 22,
+      "pain_score": 3,
+      "note": "Initial triage assessment"
+    }
+  ]
+}

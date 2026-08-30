@@ -1,0 +1,40 @@
+{
+  "patient_id": "EVAL-018",
+  "subject_id": "EVAL-018",
+  "age": 44,
+  "sex": "F",
+  "chiefcomplaint": "Diabetic ketoacidosis \u2014 blood glucose 520, vomiting, Kussmaul breathing",
+  "acuity": 2,
+  "heartrate": 118,
+  "resprate": 26,
+  "o2sat": 98,
+  "sbp": 108,
+  "dbp": 66,
+  "temperature": 37.6,
+  "pain": 3,
+  "time_elapsed_minutes": 15,
+  "previous_ed_visits": 4,
+  "previous_hospital_admissions": 3,
+  "previous_icu_admissions": 1,
+  "cardiovascular_history": 0,
+  "respiratory_history": 0,
+  "renal_history": 0,
+  "diabetes_history": 1,
+  "neurological_history": 0,
+  "malignancy_history": 0,
+  "history_text": "T1DM poorly compliant. 3 prior DKA admissions, one ICU.",
+  "observations": [
+    {
+      "encounter_id": "ENC-EVAL-018",
+      "timestamp": "2026-08-30T10:00:00Z",
+      "type": "triage",
+      "heart_rate": 118,
+      "spo2": 98,
+      "sbp": 108,
+      "dbp": 66,
+      "resp_rate": 26,
+      "pain_score": 3,
+      "note": "Initial triage assessment"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "patient_id": "EVAL-020",
+  "subject_id": "EVAL-020",
+  "age": 69,
+  "sex": "M",
+  "chiefcomplaint": "NSTEMI \u2014 troponin elevated, chest discomfort, diaphoresis",
+  "acuity": 2,
+  "heartrate": 94,
+  "resprate": 18,
+  "o2sat": 95,
+  "sbp": 144,
+  "dbp": 88,
+  "temperature": 37.1,
+  "pain": 7,
+  "time_elapsed_minutes": 15,
+  "previous_ed_visits": 2,
+  "previous_hospital_admissions": 2,
+  "previous_icu_admissions": 1,
+  "cardiovascular_history": 1,
+  "respiratory_history": 0,
+  "renal_history": 0,
+  "diabetes_history": 1,
+  "neurological_history": 0,
+  "malignancy_history": 0,
+  "history_text": "CAD, prior CABG, DM, HTN. Prior NSTEMI with CICU stay.",
+  "observations": [
+    {
+      "encounter_id": "ENC-EVAL-020",
+      "timestamp": "2026-08-30T10:00:00Z",
+      "type": "triage",
+      "heart_rate": 94,
+      "spo2": 95,
+      "sbp": 144,
+      "dbp": 88,
+      "resp_rate": 18,
+      "pain_score": 7,
+      "note": "Initial triage assessment"
+    }
+  ]
+}

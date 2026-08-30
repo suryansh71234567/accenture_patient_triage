@@ -1,0 +1,40 @@
+{
+  "patient_id": "EVAL-013",
+  "subject_id": "EVAL-013",
+  "age": 53,
+  "sex": "F",
+  "chiefcomplaint": "Right lower quadrant pain 8/10 with rebound, fever 38.4\u00b0C",
+  "acuity": 3,
+  "heartrate": 94,
+  "resprate": 18,
+  "o2sat": 98,
+  "sbp": 122,
+  "dbp": 76,
+  "temperature": 38.4,
+  "pain": 8,
+  "time_elapsed_minutes": 15,
+  "previous_ed_visits": 1,
+  "previous_hospital_admissions": 0,
+  "previous_icu_admissions": 0,
+  "cardiovascular_history": 0,
+  "respiratory_history": 0,
+  "renal_history": 0,
+  "diabetes_history": 0,
+  "neurological_history": 0,
+  "malignancy_history": 0,
+  "history_text": "No prior abdominal history.",
+  "observations": [
+    {
+      "encounter_id": "ENC-EVAL-013",
+      "timestamp": "2026-08-30T10:00:00Z",
+      "type": "triage",
+      "heart_rate": 94,
+      "spo2": 98,
+      "sbp": 122,
+      "dbp": 76,
+      "resp_rate": 18,
+      "pain_score": 8,
+      "note": "Initial triage assessment"
+    }
+  ]
+}

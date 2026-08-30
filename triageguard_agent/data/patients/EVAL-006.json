@@ -1,0 +1,40 @@
+{
+  "patient_id": "EVAL-006",
+  "subject_id": "EVAL-006",
+  "age": 81,
+  "sex": "F",
+  "chiefcomplaint": "Acute respiratory failure, RR 32, SpO2 88%, COPD history",
+  "acuity": 2,
+  "heartrate": 104,
+  "resprate": 32,
+  "o2sat": 88,
+  "sbp": 162,
+  "dbp": 94,
+  "temperature": 38.2,
+  "pain": 2,
+  "time_elapsed_minutes": 15,
+  "previous_ed_visits": 5,
+  "previous_hospital_admissions": 4,
+  "previous_icu_admissions": 2,
+  "cardiovascular_history": 1,
+  "respiratory_history": 1,
+  "renal_history": 0,
+  "diabetes_history": 0,
+  "neurological_history": 0,
+  "malignancy_history": 0,
+  "history_text": "COPD Gold IV and CHF. 2 prior ICU admissions for respiratory failure.",
+  "observations": [
+    {
+      "encounter_id": "ENC-EVAL-006",
+      "timestamp": "2026-08-30T10:00:00Z",
+      "type": "triage",
+      "heart_rate": 104,
+      "spo2": 88,
+      "sbp": 162,
+      "dbp": 94,
+      "resp_rate": 32,
+      "pain_score": 2,
+      "note": "Initial triage assessment"
+    }
+  ]
+}

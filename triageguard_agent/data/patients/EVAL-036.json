@@ -1,0 +1,40 @@
+{
+  "patient_id": "EVAL-036",
+  "subject_id": "EVAL-036",
+  "age": 28,
+  "sex": "F",
+  "chiefcomplaint": "Right ankle sprain after fall \u2014 unable to weight-bear, swollen",
+  "acuity": 4,
+  "heartrate": 76,
+  "resprate": 16,
+  "o2sat": 99,
+  "sbp": 118,
+  "dbp": 74,
+  "temperature": 36.8,
+  "pain": 6,
+  "time_elapsed_minutes": 15,
+  "previous_ed_visits": 0,
+  "previous_hospital_admissions": 0,
+  "previous_icu_admissions": 0,
+  "cardiovascular_history": 0,
+  "respiratory_history": 0,
+  "renal_history": 0,
+  "diabetes_history": 0,
+  "neurological_history": 0,
+  "malignancy_history": 0,
+  "history_text": "No prior history.",
+  "observations": [
+    {
+      "encounter_id": "ENC-EVAL-036",
+      "timestamp": "2026-08-30T10:00:00Z",
+      "type": "triage",
+      "heart_rate": 76,
+      "spo2": 99,
+      "sbp": 118,
+      "dbp": 74,
+      "resp_rate": 16,
+      "pain_score": 6,
+      "note": "Initial triage assessment"
+    }
+  ]
+}
