@@ -1,0 +1,45 @@
+{
+  "patient_id": "10016742",
+  "subject_id": 10016742,
+  "age": 71,
+  "sex": "M",
+  "chiefcomplaint": "chest pain and shortness of breath",
+  "acuity": 2,
+  "heartrate": 112,
+  "resprate": 22,
+  "o2sat": 94,
+  "sbp": 148,
+  "dbp": 90,
+  "temperature": 98.9,
+  "pain": 7,
+  "time_elapsed_minutes": 15,
+  "previous_ed_visits": 3,
+  "previous_hospital_admissions": 2,
+  "previous_icu_admissions": 1,
+  "cardiovascular_history": 1,
+  "respiratory_history": 0,
+  "renal_history": 0,
+  "diabetes_history": 1,
+  "neurological_history": 0,
+  "malignancy_history": 0,
+  "observations": [
+    {
+      "encounter_id": "E10016742-1",
+      "timestamp": "2023-06-10T14:20:00Z",
+      "type": "triage",
+      "heart_rate": 108,
+      "spo2": 93,
+      "sbp": 155,
+      "dbp": 92,
+      "resp_rate": 20,
+      "pain_score": 8,
+      "note": "Presented with chest pain. Troponin pending. History of CAD and DM."
+    },
+    {
+      "encounter_id": "E10016742-1",
+      "timestamp": "2023-06-10T15:00:00Z",
+      "type": "clinical_note",
+      "note": "Elevated troponin. NSTEMI. Patient admitted to CICU. Cardiology consulted."
+    }
+  ]
+}

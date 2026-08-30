@@ -76,10 +76,17 @@ def build_prompt(
     # the Master MD's 4-section prompt structure (CURRENT PATIENT /
     # CURRENT CLINICAL STATE / PATIENT'S RELEVANT HISTORY / SIMILAR
     # HISTORICAL CASES).
+    age = current_state.get('age') or current_state.get('Age')
+    sex = current_state.get('sex') or current_state.get('gender')
+    history = current_state.get('history_text') or current_state.get('past_medical_history') or ''
+
     identity_text = (
         f"Patient ID      : {current_state.get('patient_id', 'N/A')}\n"
+        f"Age             : {fmt(age)} years\n"
+        f"Sex             : {fmt(sex)}\n"
         f"Chief complaint : {fmt(current_state.get('chiefcomplaint'))}\n"
         f"Acuity level    : {fmt(current_state.get('acuity'))}\n"
+        + (f"Past medical hx : {history}\n" if history else "Past medical hx : None documented\n")
     )
     clinical_state_text = (
         f"Heart rate      : {fmt(current_state.get('heartrate'), ' bpm')}\n"
@@ -114,11 +121,11 @@ as evidence — do not withhold or ignore an outcome that is already present
 in the evidence above.
 
 Based on the current presentation and the evidence above, reason about:
-1. What is the likely clinical trajectory for this patient over the next few hours?
+1. What is the likely clinical trajectory for this patient over the next few hours? Explicitly factor in the patient's age — patients 65+ have reduced physiological reserve and decompensate faster; younger patients may compensate better but can mask severity.
 2. What would a meaningful change (improvement or deterioration) look like for this patient?
-3. Are there any red flags in the vitals or history that warrant urgent attention?
-4. Is escalation (e.g. ICU-level concern) warranted based on the trajectory and evidence?
-5. How strongly does the retrieved evidence above actually support this assessment, versus general clinical judgment?
+3. Are there any red flags in the vitals or history that warrant urgent attention? Consider how the documented past medical history (e.g. CAD, COPD, diabetes, prior stroke, CKD) interacts with the current presentation and worsens risk.
+4. Is escalation (e.g. ICU-level concern) warranted based on the trajectory and evidence? If no prior history is available, note that this increases uncertainty and warrants conservative management.
+5. How strongly does the retrieved evidence above actually support this assessment, versus general clinical judgment? If no patient history was retrieved, state this and rate evidence_strength lower (1-2).
 
 Be concise, structured, and clinically accurate. Cite specific vital values or historical findings where relevant.
 You are NOT deciding the final disposition or department placement — a separate

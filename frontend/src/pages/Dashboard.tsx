@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { usePoll } from "../hooks/usePoll";
 import { useSession } from "../state/SessionContext";
 import { Badge, Card, DeptGauge, EmptyState, Spinner, acuityTone } from "../components/ui";
+import { ManualIntakeForm } from "../components/ManualIntakeForm";
 
 const MODE_TONE: Record<string, "good" | "warn" | "critical"> = {
   NORMAL: "good",
@@ -12,8 +14,9 @@ const MODE_TONE: Record<string, "good" | "warn" | "critical"> = {
 
 export function Dashboard() {
   const { mutationTick } = useSession();
-  const { data, loading } = usePoll(() => api.dashboard(), 6000, [mutationTick]);
-  const { data: patients } = usePoll(() => api.listPatients(), 15000, [mutationTick]);
+  const { data, loading, refetch } = usePoll(() => api.dashboard(), 6000, [mutationTick]);
+  const { data: patients, refetch: refetchPatients } = usePoll(() => api.listPatients(), 15000, [mutationTick]);
+  const [showIntake, setShowIntake] = useState(false);
 
   if (loading && !data) {
     return (
@@ -35,11 +38,17 @@ export function Dashboard() {
             {data.scenario.title} · {data.time} · updated live
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <Badge tone={modeTone} dot>
             {data.load.operating_mode.replace("_", " ")}
           </Badge>
           <Badge tone="neutral">λ {data.load.lambda.toFixed(2)}</Badge>
+          <button
+            onClick={() => setShowIntake(true)}
+            className="rounded-lg bg-[var(--color-brand-500)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--color-brand-600)] transition shadow-sm"
+          >
+            + Register patient
+          </button>
         </div>
       </div>
 
@@ -122,6 +131,13 @@ export function Dashboard() {
           </ul>
         </Card>
       </div>
+
+      {showIntake && (
+        <ManualIntakeForm
+          onSuccess={() => { refetch(); refetchPatients(); }}
+          onClose={() => setShowIntake(false)}
+        />
+      )}
     </div>
   );
 }

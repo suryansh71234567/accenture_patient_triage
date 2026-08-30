@@ -103,4 +103,29 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ session_id, patient_id, department, custom_los_min }),
     }),
+
+  manualArrival: (payload: {
+    patient_id: string;
+    chief_complaint: string;
+    age: number;
+    sex: string;
+    acuity: number;
+    hr?: number | null;
+    rr?: number | null;
+    spo2?: number | null;
+    sbp?: number | null;
+    dbp?: number | null;
+    temperature?: number | null;
+    pain?: number | null;
+  }) =>
+    req<WaitingPatient & { has_history: boolean; history_text: string }>(
+      "/api/simulation/manual-arrival",
+      { method: "POST", body: JSON.stringify(payload) }
+    ),
+
+  reorderQueue: (patient_id: string, new_index: number, note?: string) =>
+    req<{ moved: boolean; queue_length: number }>("/api/simulation/queue/reorder", {
+      method: "POST",
+      body: JSON.stringify({ patient_id, new_index, note: note ?? "" }),
+    }),
 };
