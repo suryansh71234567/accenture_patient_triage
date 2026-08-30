@@ -111,6 +111,7 @@ class RAGPipeline:
           "patient_history": [...],   # retrieved self docs
           "similar_cases":   [...],   # retrieved similar docs
         }
+        """
         raw_pid = patient_state.get("patient_id", -1)
         try:
             patient_id = int(raw_pid)
