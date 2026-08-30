@@ -1,0 +1,14 @@
+{
+  "ingested_datasets": [
+    {
+      "dataset_hash": "sha256:d46a2b4b5d18121247f08332142002454515ed59f2a3cd855307a1fcfb2f63f2",
+      "hospital_id": "qa_test_hospital",
+      "hospital_name": "QA Manual Test Hospital",
+      "dataset_name": "manual_qa_batch_1",
+      "ingested_at": "2026-08-29T23:51:01.620483+00:00",
+      "records_received": 1,
+      "records_ingested": 1,
+      "records_skipped": 0
+    }
+  ]
+}
