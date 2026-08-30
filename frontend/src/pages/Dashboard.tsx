@@ -5,6 +5,7 @@ import { usePoll } from "../hooks/usePoll";
 import { useSession } from "../state/SessionContext";
 import { Badge, Card, DeptGauge, EmptyState, Spinner, acuityTone } from "../components/ui";
 import { ManualIntakeForm } from "../components/ManualIntakeForm";
+import { DepartmentQueueBoard } from "../components/DepartmentQueueBoard";
 
 const MODE_TONE: Record<string, "good" | "warn" | "critical"> = {
   NORMAL: "good",
@@ -13,8 +14,8 @@ const MODE_TONE: Record<string, "good" | "warn" | "critical"> = {
 };
 
 export function Dashboard() {
-  const { mutationTick } = useSession();
-  const { data, loading, refetch } = usePoll(() => api.dashboard(), 6000, [mutationTick]);
+  const { mutationTick, hospitalId } = useSession();
+  const { data, loading, refetch } = usePoll(() => api.dashboard(hospitalId), 6000, [mutationTick, hospitalId]);
   const { data: patients, refetch: refetchPatients } = usePoll(() => api.listPatients(), 15000, [mutationTick]);
   const [showIntake, setShowIntake] = useState(false);
 
@@ -59,41 +60,25 @@ export function Dashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Card title="Department capacity" className="lg:col-span-2" subtitle="Live bed occupancy across the hospital">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {data.departments.map((d) => (
-              <DeptGauge key={d.name} {...d} />
-            ))}
-          </div>
-        </Card>
+      <Card title="Department capacity" subtitle="Live bed occupancy across the hospital">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {data.departments.map((d) => (
+            <DeptGauge key={d.name} {...d} />
+          ))}
+        </div>
+      </Card>
 
-        <Card
-          title="ED waiting queue"
-          subtitle={`${data.waiting_count} waiting`}
-          right={
-            <Link to="/live" className="text-xs font-medium text-[var(--color-brand-600)] hover:underline">
-              Open Live Hospital →
-            </Link>
-          }
-        >
-          {data.waiting_queue.length === 0 ? (
-            <p className="text-sm text-[var(--color-ink-faint)]">ED queue is clear.</p>
-          ) : (
-            <ul className="space-y-2">
-              {data.waiting_queue.map((p) => (
-                <li key={p.patient_id} className="flex items-start gap-2 rounded-lg border border-[var(--color-border)] p-2.5">
-                  <Badge tone={acuityTone(p.acuity)}>A{p.acuity}</Badge>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-[var(--color-ink)]">{p.patient_id}</p>
-                    <p className="truncate text-xs text-[var(--color-ink-faint)]">{p.chief_complaint}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      </div>
+      <Card
+        title="Department queues"
+        subtitle={`${data.waiting_count} waiting for triage · drag to reorder or move between departments`}
+        right={
+          <Link to="/live" className="text-xs font-medium text-[var(--color-brand-600)] hover:underline">
+            Open Live Hospital →
+          </Link>
+        }
+      >
+        <DepartmentQueueBoard dash={data} hospitalId={hospitalId} onChanged={refetch} compact />
+      </Card>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card title="Patients" subtitle="Chart-based patients you can look up and update" className="lg:col-span-2">

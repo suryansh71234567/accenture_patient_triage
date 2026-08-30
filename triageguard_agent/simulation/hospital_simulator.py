@@ -187,9 +187,20 @@ class HospitalSimulator:
         self._inject_presimulated_patients(scenario.name)
 
     def _inject_presimulated_patients(self, scenario_name: str) -> None:
-        """Pre-populate the queue and admitted cohort with scenario-appropriate patients."""
+        """
+        Pre-populate the queue and admitted cohort with scenario-appropriate
+        demo patients — "default" hospital only, so the out-of-box demo
+        looks alive. Any other hospital (including one just registered via
+        onboarding) starts with a genuinely empty queue: the demo pool is a
+        small set of fixed, shared patient_ids (e.g. "10016742") that would
+        otherwise appear identically in every hospital, which is confusing
+        for a hospital meant to be populated with its own real arrivals.
+        """
         # Clear existing queue so switching scenarios gives a fresh state
         self.patient_flow.clear()
+        from triageguard_agent.hospital.hospital_registry import DEFAULT_HOSPITAL_ID
+        if self.hospital_id != DEFAULT_HOSPITAL_ID:
+            return
         t = self.events.sim_time_minutes
         load_info = self.load_controller.recalculate(self.state_service.get_all())
         lam = load_info.get("lambda", 0.6)
@@ -386,7 +397,43 @@ class HospitalSimulator:
         operational_dept = clinical_dept
         recommendation_notes = []
 
-        if clinical_dept in ("ICU", "CICU"):
+        # If this hospital has a calibrated Bayesian/RL routing policy
+        # (route_with_hospital_policy via run_triage_assessment), its
+        # resource-aware, per-hospital-calibrated allocation is more
+        # informative than the single-threshold check below — use it
+        # instead of recomputing a cruder decision from scratch. Falls
+        # through to the threshold check when no policy exists for this
+        # hospital, or when the policy found no feasible department at all
+        # (operational_department is None there — never fabricate an
+        # allocation), preserving today's behavior exactly in both cases.
+        policy_applied = clinical_output.get("policy_applied", False)
+        policy_operational_dept = clinical_output.get("operational_department")
+
+        if policy_applied and policy_operational_dept:
+            operational_dept = policy_operational_dept
+            resource_constraint = clinical_output.get("resource_constraint", False)
+            human_review = clinical_output.get("human_review_recommended", False)
+            capacity_warning = resource_constraint
+            confirmation_required = resource_constraint or human_review
+            if resource_constraint:
+                recommendation_notes.append(
+                    f"{clinical_dept} is resource-constrained per this hospital's calibrated "
+                    f"routing policy; {operational_dept} is the policy's highest-scoring "
+                    "feasible alternative."
+                )
+                self.events.emit(
+                    EventType.CAPACITY_WARNING,
+                    f"{clinical_dept} resource-constrained for Patient {patient.patient_id}; "
+                    f"hospital policy allocated {operational_dept}.",
+                    department=clinical_dept,
+                    patient_id=patient.patient_id,
+                )
+            else:
+                recommendation_notes.append(
+                    f"Hospital-calibrated routing policy allocated {operational_dept} "
+                    f"({available_beds}/{capacity} open)."
+                )
+        elif clinical_dept in ("ICU", "CICU"):
             if available_beds <= 0:
                 capacity_warning = True
                 confirmation_required = True
@@ -442,6 +489,13 @@ class HospitalSimulator:
         operational_decision = {
             "clinical_department": clinical_dept,
             "operational_department": operational_dept,
+            # Immutable snapshot of what the AI/policy recommended at triage
+            # time — override_department() below changes operational_department
+            # but must never touch this, so the original recommendation is
+            # never lost once a nurse overrides it.
+            "ai_operational_department": operational_dept,
+            "nurse_override": False,
+            "override_reason": None,
             "available_beds_in_clinical_dept": available_beds,
             "operating_mode": operating_mode,
             "lambda": load_info["lambda"],
@@ -467,6 +521,87 @@ class HospitalSimulator:
             "patient_id": patient.patient_id,
             "clinical_assessment": clinical_output,
             "operational_decision": operational_decision,
+            "patient": patient.to_dict(),
+        }
+
+    def override_department(
+        self,
+        patient_id: str,
+        department: str,
+        reason: str = "",
+    ) -> Dict[str, Any]:
+        """
+        Nurse override: move a TRIAGED (not-yet-admitted) patient's
+        operational destination to `department`, e.g. General Ward -> ICU.
+
+        Only operational_department changes — clinical_department (the
+        clinical preference) and ai_operational_department (the original
+        AI/policy recommendation, set once at triage_patient()) are never
+        touched, so the override is always distinguishable from the
+        AI-generated decision it replaces.
+
+        Feasibility is checked against the SAME live hospital_state the
+        routing policy itself reads (never fabricate unavailable/closed
+        capacity) — raises ValueError (caller maps to an HTTP 400) if the
+        department doesn't exist, is CLOSED, or has zero beds available.
+        Does not re-run clinical candidate-tier restrictions: the nurse is
+        the final operational decision-maker once resources are feasible.
+        """
+        patient = self.patient_flow.get_patient(patient_id)
+        if not patient:
+            raise KeyError(f"Patient {patient_id!r} not found in simulation.")
+        if patient.status != PatientStatus.TRIAGED:
+            raise ValueError(
+                f"Patient {patient_id!r} is {patient.status.value}, not TRIAGED — "
+                "only a triaged, not-yet-admitted patient's destination can be overridden."
+            )
+        if not self.state_service.department_exists(department):
+            raise ValueError(f"Department {department!r} is not part of this hospital's configuration.")
+
+        dept_state = self.state_service.get_state(department) or {}
+        if dept_state.get("status") == "CLOSED" or dept_state.get("available", 0) <= 0:
+            raise ValueError(
+                f"{department} has no available capacity right now "
+                f"({dept_state.get('occupied', '?')}/{dept_state.get('capacity', '?')}, "
+                f"status={dept_state.get('status', 'UNKNOWN')}) — cannot override into it."
+            )
+
+        decision = patient.operational_decision or {}
+        previous_department = decision.get("operational_department")
+        ai_department = decision.get("ai_operational_department", previous_department)
+
+        decision["operational_department"] = department
+        decision["nurse_override"] = True
+        decision["override_reason"] = reason or None
+        decision["capacity_warning"] = False
+        decision["confirmation_required"] = False
+        decision["recommendation_summary"] = (
+            f"Nurse override: moved from {previous_department} to {department}"
+            + (f" ({reason})" if reason else "") + f". AI recommended {ai_department}."
+        )
+        patient.operational_decision = decision
+
+        self.events.emit(
+            EventType.STAFF_OVERRIDE,
+            f"Nurse override: Patient {patient.patient_id} moved {previous_department} → {department}"
+            + (f" — {reason}" if reason else ""),
+            department=department,
+            patient_id=patient.patient_id,
+            data={
+                "previous_department": previous_department,
+                "ai_operational_department": ai_department,
+                "new_department": department,
+                "reason": reason or None,
+            },
+        )
+
+        return {
+            "patient_id": patient.patient_id,
+            "previous_department": previous_department,
+            "ai_operational_department": ai_department,
+            "operational_department": department,
+            "nurse_override": True,
+            "override_reason": reason or None,
             "patient": patient.to_dict(),
         }
 

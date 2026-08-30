@@ -53,6 +53,11 @@ from triageguard_agent.tools.patient_tools import (
 )
 from triageguard_agent.tools.simulation_tools import get_simulator
 from triageguard_agent.simulation.scenarios import list_scenarios
+from triageguard_agent.hospital.hospital_registry import get_default_registry
+from triageguard_router.policy import artifacts
+from triageguard_router.policy.facility_calibration import scenarios_for_hospital
+from triageguard_router.policy.hospital_calibration import NurseResponses, fit_hospital_policy
+from triageguard_router.policy.live_routing import _artifact_hospital_id
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("triageguard.api")
@@ -92,6 +97,7 @@ class NewSessionRequest(BaseModel):
 class ChatRequest(BaseModel):
     session_id: str
     message: str
+    hospital_id: Optional[str] = None
 
 
 class ToolExecuteRequest(BaseModel):
@@ -107,11 +113,29 @@ class ToolConfirmRequest(BaseModel):
 
 class ScenarioRequest(BaseModel):
     name: str
+    hospital_id: Optional[str] = None
 
 
 class StepRequest(BaseModel):
     minutes: int = 15
     auto_generate_arrivals: bool = True
+    hospital_id: Optional[str] = None
+
+
+class DepartmentConfig(BaseModel):
+    capacity: int
+    occupied: int = 0
+    status: str = "OPEN"
+
+
+class RegisterHospitalRequest(BaseModel):
+    hospital_id: str
+    hospital_name: str
+    departments: Dict[str, DepartmentConfig]
+
+
+class CalibrationSubmitRequest(BaseModel):
+    responses: Dict[str, str]
 
 
 # ---------------------------------------------------------------------------
@@ -121,6 +145,100 @@ class StepRequest(BaseModel):
 @app.get("/api/health")
 def health() -> Dict[str, Any]:
     return {"status": "ok", "tools_registered": len(RUNTIME.tool_registry)}
+
+
+@app.get("/api/hospitals")
+def list_hospitals() -> List[Dict[str, str]]:
+    """List registered hospitals (id/name/config path) via the existing HospitalRegistry."""
+    return get_default_registry().list_hospitals()
+
+
+@app.post("/api/hospitals")
+def register_hospital(req: RegisterHospitalRequest) -> Dict[str, str]:
+    """
+    Register a new hospital via the existing HospitalRegistry.register() —
+    no new persistence mechanism, just a thin HTTP wrapper. Reuses the same
+    validation register() already performs (empty/duplicate hospital_id).
+    """
+    if not req.departments:
+        raise HTTPException(status_code=400, detail="At least one department is required.")
+
+    config_dict = {"departments": {name: cfg.model_dump() for name, cfg in req.departments.items()}}
+    try:
+        ctx = get_default_registry().register(
+            req.hospital_id.strip(), req.hospital_name.strip(), config_dict=config_dict
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    return {"hospital_id": ctx.hospital_id, "hospital_name": ctx.hospital_name}
+
+
+@app.get("/api/hospitals/{hospital_id}/calibration/status")
+def calibration_status(hospital_id: str) -> Dict[str, Any]:
+    """Whether this hospital already has a saved calibrated policy (artifacts.artifacts_exist)."""
+    if not get_default_registry().exists(hospital_id):
+        raise HTTPException(status_code=404, detail=f"Hospital {hospital_id!r} is not registered.")
+    return {
+        "hospital_id": hospital_id,
+        "calibrated": artifacts.artifacts_exist(hospital_id=_artifact_hospital_id(hospital_id)),
+    }
+
+
+@app.get("/api/hospitals/{hospital_id}/calibration/scenarios")
+def calibration_scenarios(hospital_id: str) -> Dict[str, Any]:
+    """
+    The existing nurse-calibration scenarios (demonstrations.py), adapted to
+    this hospital's own facility departments via facility_calibration.py's
+    scenarios_for_hospital() — candidate_departments already excludes any
+    department this hospital doesn't have.
+    """
+    try:
+        ctx = get_default_registry().get(hospital_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+    facility_departments = ctx.state_service.get_all()
+    result = scenarios_for_hospital(hospital_id, facility_departments)
+    return {
+        "hospital_id": hospital_id,
+        "scenario_count": result["scenario_count"],
+        "scenarios": [s.to_dict() for s in result["scenarios"]],
+    }
+
+
+@app.post("/api/hospitals/{hospital_id}/calibration/submit")
+def submit_calibration(hospital_id: str, req: CalibrationSubmitRequest) -> Dict[str, Any]:
+    """
+    Fit + save this hospital's calibrated Bayesian routing policy from the
+    nurse's scenario answers, using the existing calibration pipeline
+    unchanged (NurseResponses -> fit_hospital_policy -> save_bayesian_policy).
+    Artifacts are namespaced per hospital_id (artifacts.py, unchanged) — this
+    can never write into another hospital's saved policy.
+    """
+    try:
+        ctx = get_default_registry().get(hospital_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+    if not req.responses:
+        raise HTTPException(status_code=400, detail="At least one scenario response is required.")
+
+    facility_departments = ctx.state_service.get_all()
+    responses = NurseResponses(hospital_id=hospital_id, responses=req.responses)
+    try:
+        policy = fit_hospital_policy(hospital_id, facility_departments, responses)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    saved_path = artifacts.save_bayesian_policy(policy, hospital_id=_artifact_hospital_id(hospital_id))
+
+    return {
+        "hospital_id": hospital_id,
+        "calibrated": True,
+        "trained_scenarios": policy.training_metadata.get("scenario_count"),
+        "artifact_path": str(saved_path),
+    }
 
 
 @app.post("/api/session")
@@ -138,6 +256,12 @@ def get_session_state(session_id: str) -> Dict[str, Any]:
 @app.post("/api/chat")
 def chat(req: ChatRequest) -> Dict[str, Any]:
     state = _get_session(req.session_id)
+    if req.hospital_id:
+        # Stamped every turn (not just at session creation) so switching the
+        # hospital selector mid-conversation takes effect on the very next
+        # message — every tool call this turn resolves via AgentRuntime.run_tool's
+        # hospital_id auto-fill instead of silently defaulting to "default".
+        state.hospital_id = req.hospital_id
     response = RUNTIME.process_turn(req.message, state)
     return response.to_dict()
 
@@ -234,34 +358,49 @@ def get_patient(patient_id: str) -> Dict[str, Any]:
 
 
 @app.post("/api/patients/{patient_id}/assess")
-def assess_patient(patient_id: str, session_id: str) -> Dict[str, Any]:
+def assess_patient(patient_id: str, session_id: str, hospital_id: Optional[str] = None) -> Dict[str, Any]:
     state = _get_session(session_id)
     record = get_patient_record(patient_id)
     if record is None:
         raise HTTPException(status_code=404, detail=f"No patient record for {patient_id!r}.")
 
     patient_data = build_assessment_input(record)
+    if hospital_id:
+        # TriageGuardPipeline.run() reads hospital_id off the patient dict
+        # when not passed as an explicit kwarg (see combined_pipeline.py) —
+        # run_triage_assessment's own signature only takes patient_data, so
+        # this is the existing, intended way to thread it through.
+        patient_data["hospital_id"] = hospital_id
     result = RUNTIME.run_tool("run_triage_assessment", {"patient_data": patient_data}, agent_state=state)
 
     if not result.success:
         raise HTTPException(status_code=502, detail=(result.error or {}).get("message", "Assessment failed"))
 
-    department = result.data.get("department")
-    resource_check = _resource_check(department, state) if department else None
+    resource_check = _resource_check(result.data, state, hospital_id) if result.data.get("department") else None
 
     return {"assessment": result.data, "resource_check": resource_check}
 
 
-def _resource_check(department: str, state: AgentState) -> Dict[str, Any]:
+def _resource_check(assessment: Dict[str, Any], state: AgentState, hospital_id: Optional[str] = None) -> Dict[str, Any]:
     """
     UI-only convenience: combine the clinical department recommendation with
     live bed availability so a nurse looking at a file-based patient (e.g.
-    "52") sees an honest "is this department currently open?" hint. This is
-    NOT the fully wired, confirmation-gated preferred-vs-allocated allocation
-    decision — that real flow exists only for simulated ED-queue patients via
-    HospitalSimulator.triage_patient/admit_patient. See frontend report.
+    "52") sees an honest "is this department currently open?" hint.
+
+    Phase 6: when this hospital has a calibrated routing policy
+    (assessment["policy_applied"], set by run_triage_assessment), trust its
+    already-computed operational_department/resource_constraint — the same
+    Bayesian/RL-driven, resource-aware, never-fabricated decision the
+    simulated-ED-queue flow uses (HospitalSimulator.triage_patient) — instead
+    of recomputing a cruder ICU/CICU/ADMITTED_GEN-only threshold check here.
+    Falls back to that threshold check exactly as before when no calibrated
+    policy exists for this hospital.
     """
-    result = RUNTIME.run_tool("get_hospital_state", {"department": department}, agent_state=state)
+    department = assessment.get("department")
+    kwargs: Dict[str, Any] = {"department": department}
+    if hospital_id:
+        kwargs["hospital_id"] = hospital_id
+    result = RUNTIME.run_tool("get_hospital_state", kwargs, agent_state=state)
     if not result.success:
         return {"preferred_department": department, "available": None, "note": "Hospital state unavailable."}
 
@@ -270,19 +409,31 @@ def _resource_check(department: str, state: AgentState) -> Dict[str, Any]:
     occupied = dept_state.get("occupied", 0)
     available = dept_state.get("available", 0)
 
-    constrained = department in ("ICU", "CICU", "ADMITTED_GEN") and available <= 0
-    tight = department in ("ICU", "CICU") and available == 1
-
-    allocated_department = department
-    note = None
-    if constrained:
-        allocated_department = "ED_OBS" if department != "ED_OBS" else department
-        note = (
-            f"{department} is at capacity ({occupied}/{capacity}). "
-            f"Recommending {allocated_department} pending capacity, with staff escalation for transfer."
-        )
-    elif tight:
-        note = f"{department} has only 1 bed remaining ({occupied}/{capacity}) — confirm before allocating it."
+    if assessment.get("policy_applied") and assessment.get("operational_department"):
+        allocated_department = assessment["operational_department"]
+        constrained = bool(assessment.get("resource_constraint", False))
+        tight = bool(assessment.get("human_review_recommended", False)) and not constrained
+        note = None
+        if constrained:
+            note = (
+                f"{department} is resource-constrained per this hospital's calibrated routing "
+                f"policy. Recommending {allocated_department}."
+            )
+        elif tight:
+            note = "This hospital's routing policy flagged this allocation for human review."
+    else:
+        constrained = department in ("ICU", "CICU", "ADMITTED_GEN") and available <= 0
+        tight = department in ("ICU", "CICU") and available == 1
+        allocated_department = department
+        note = None
+        if constrained:
+            allocated_department = "ED_OBS" if department != "ED_OBS" else department
+            note = (
+                f"{department} is at capacity ({occupied}/{capacity}). "
+                f"Recommending {allocated_department} pending capacity, with staff escalation for transfer."
+            )
+        elif tight:
+            note = f"{department} has only 1 bed remaining ({occupied}/{capacity}) — confirm before allocating it."
 
     return {
         "preferred_department": department,
@@ -301,12 +452,15 @@ def _resource_check(department: str, state: AgentState) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 @app.get("/api/hospital/state")
-def hospital_state(session_id: Optional[str] = None) -> Dict[str, Any]:
+def hospital_state(session_id: Optional[str] = None, hospital_id: Optional[str] = None) -> Dict[str, Any]:
     # session_id optional here — hospital state reads don't need conversational
     # context, but if given we stamp AgentState.hospital_state_timestamp same
     # as the chat path does.
     state = SESSIONS.get(session_id) if session_id else None
-    result = RUNTIME.run_tool("get_hospital_state", {}, agent_state=state)
+    kwargs: Dict[str, Any] = {}
+    if hospital_id:
+        kwargs["hospital_id"] = hospital_id
+    result = RUNTIME.run_tool("get_hospital_state", kwargs, agent_state=state)
     if not result.success:
         raise HTTPException(status_code=502, detail=(result.error or {}).get("message"))
     return result.data
@@ -330,15 +484,15 @@ def scenarios() -> List[Dict[str, Any]]:
 
 
 @app.get("/api/simulation/dashboard")
-def simulation_dashboard() -> Dict[str, Any]:
-    sim = get_simulator()
+def simulation_dashboard(hospital_id: Optional[str] = None) -> Dict[str, Any]:
+    sim = get_simulator(hospital_id)
     return sim.get_live_dashboard()
 
 
 
 @app.post("/api/simulation/scenario")
 def load_scenario(req: ScenarioRequest) -> Dict[str, Any]:
-    sim = get_simulator()
+    sim = get_simulator(req.hospital_id)
     try:
         sim.load_scenario(req.name)
     except KeyError as exc:
@@ -348,7 +502,7 @@ def load_scenario(req: ScenarioRequest) -> Dict[str, Any]:
 
 @app.post("/api/simulation/step")
 def step_simulation(req: StepRequest) -> Dict[str, Any]:
-    sim = get_simulator()
+    sim = get_simulator(req.hospital_id)
     try:
         out = sim.step(minutes=req.minutes, auto_generate_arrivals=req.auto_generate_arrivals)
     except ValueError as exc:
@@ -357,8 +511,8 @@ def step_simulation(req: StepRequest) -> Dict[str, Any]:
 
 
 @app.post("/api/simulation/arrival")
-def trigger_arrival(target_acuity: Optional[int] = None) -> Dict[str, Any]:
-    sim = get_simulator()
+def trigger_arrival(target_acuity: Optional[int] = None, hospital_id: Optional[str] = None) -> Dict[str, Any]:
+    sim = get_simulator(hospital_id)
     patient = sim.trigger_arrival(target_acuity=target_acuity)
     return patient.to_dict()
 
@@ -377,6 +531,7 @@ class ManualArrivalRequest(BaseModel):
     dbp: Optional[float] = None
     temperature: Optional[float] = None
     pain: Optional[int] = None
+    hospital_id: Optional[str] = None
 
 
 @app.post("/api/simulation/manual-arrival")
@@ -396,7 +551,7 @@ def manual_arrival(req: ManualArrivalRequest) -> Dict[str, Any]:
     from triageguard_agent.simulation.patient_flow import SimulatedPatient, PatientStatus
     from triageguard_agent.tools.patient_tools import get_patient_record
 
-    sim = get_simulator()
+    sim = get_simulator(req.hospital_id)
 
     # ── 1. Look up stored patient record ───────────────────────────────────
     stored = get_patient_record(req.patient_id)
@@ -488,8 +643,8 @@ def manual_arrival(req: ManualArrivalRequest) -> Dict[str, Any]:
 
 
 @app.post("/api/simulation/triage/{patient_id}")
-def triage_simulated(patient_id: str) -> Dict[str, Any]:
-    sim = get_simulator()
+def triage_simulated(patient_id: str, hospital_id: Optional[str] = None) -> Dict[str, Any]:
+    sim = get_simulator(hospital_id)
     patient = sim.patient_flow.get_patient(patient_id)
     if not patient:
         raise HTTPException(status_code=404, detail=f"Patient {patient_id!r} not found in simulation queue.")
@@ -511,12 +666,13 @@ class QueueReorderRequest(BaseModel):
     patient_id: str
     new_index: int
     note: str = ""
+    hospital_id: Optional[str] = None
 
 
 @app.post("/api/simulation/queue/reorder")
 def reorder_queue(req: QueueReorderRequest) -> Dict[str, Any]:
     """Move a patient to a specific position in the waiting queue."""
-    sim = get_simulator()
+    sim = get_simulator(req.hospital_id)
     moved = sim.patient_flow.reorder_queue(req.patient_id, req.new_index, req.note)
     if not moved:
         raise HTTPException(status_code=404, detail=f"Patient {req.patient_id!r} not found in queue.")
@@ -529,11 +685,64 @@ def reorder_queue(req: QueueReorderRequest) -> Dict[str, Any]:
     }
 
 
+class DepartmentReorderRequest(BaseModel):
+    patient_id: str
+    department: str
+    new_index: int
+    note: str = ""
+    hospital_id: Optional[str] = None
+
+
+@app.post("/api/simulation/queue/reorder-department")
+def reorder_department_queue(req: DepartmentReorderRequest) -> Dict[str, Any]:
+    """Drag-and-drop reorder within one department's triaged queue (Phase 9)."""
+    sim = get_simulator(req.hospital_id)
+    moved = sim.patient_flow.reorder_within_department(req.patient_id, req.department, req.new_index, req.note)
+    if not moved:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Patient {req.patient_id!r} not found in the {req.department!r} queue.",
+        )
+    return {
+        "moved": True,
+        "patient_id": req.patient_id,
+        "department": req.department,
+        "new_index": req.new_index,
+    }
+
+
+class QueueOverrideRequest(BaseModel):
+    patient_id: str
+    department: str
+    reason: str = ""
+    hospital_id: Optional[str] = None
+
+
+@app.post("/api/simulation/queue/override")
+def override_department(req: QueueOverrideRequest) -> Dict[str, Any]:
+    """
+    Nurse cross-department override (drag a patient into a different
+    department queue). Rejects infeasible moves (unknown/closed/full
+    department) cleanly with a 400 rather than fabricating an allocation —
+    HospitalSimulator.override_department() checks the same live hospital
+    state the routing policy itself reads.
+    """
+    sim = get_simulator(req.hospital_id)
+    try:
+        result = sim.override_department(req.patient_id, req.department, req.reason)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return result
+
+
 class AdmitRequest(BaseModel):
     session_id: str
     patient_id: str
     department: Optional[str] = None
     custom_los_min: Optional[int] = None
+    hospital_id: Optional[str] = None
 
 
 @app.post("/api/simulation/admit")
@@ -548,6 +757,8 @@ def admit_simulated(req: AdmitRequest) -> Dict[str, Any]:
         kwargs["department"] = req.department
     if req.custom_los_min is not None:
         kwargs["custom_los_min"] = req.custom_los_min
+    if req.hospital_id:
+        kwargs["hospital_id"] = req.hospital_id
 
     result = RUNTIME.run_tool("admit_simulated_patient", kwargs, agent_state=state)
     if not result.success and result.error and result.error.get("code") == "APPROVAL_REQUIRED":

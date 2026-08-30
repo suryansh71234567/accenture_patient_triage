@@ -3,7 +3,6 @@ import { Link, useParams } from "react-router-dom";
 import { api } from "../api/client";
 import { usePoll } from "../hooks/usePoll";
 import { useSession } from "../state/SessionContext";
-import { computeResourceCheck } from "../lib/resourceCheck";
 import {
   Badge,
   Button,
@@ -29,7 +28,7 @@ const OBS_TYPES: { value: string; label: string; unit: string }[] = [
 
 export function PatientWorkspace() {
   const { id = "" } = useParams();
-  const { sessionId, proposeAction, mutationTick } = useSession();
+  const { sessionId, proposeAction, mutationTick, hospitalId } = useSession();
 
   const { data: detail, loading, refetch } = usePoll(() => api.getPatient(id), 20000, [id]);
   const [assessment, setAssessment] = useState<AssessmentResult | null>(null);
@@ -52,12 +51,28 @@ export function PatientWorkspace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mutationTick]);
 
+  // A clinical assessment/resource-check result was computed for whichever
+  // hospital was selected when it ran. Switching hospitals mid-view must not
+  // keep showing that stale department/risk/resource picture as if it still
+  // applied to the newly selected hospital — clear it back to the same
+  // "no assessment yet" state a fresh page load starts in.
+  const lastHospitalId = useMemo(() => hospitalId, []);
+  useEffect(() => {
+    if (hospitalId !== lastHospitalId) {
+      setAssessment(null);
+      setResourceCheck(null);
+      setAssessError(null);
+      setStaleBanner(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hospitalId]);
+
   const runAssessment = async () => {
     if (!sessionId) return;
     setAssessing(true);
     setAssessError(null);
     try {
-      const result = await api.assessPatient(id, sessionId);
+      const result = await api.assessPatient(id, sessionId, hospitalId);
       setAssessment(result.assessment);
       setResourceCheck(result.resource_check);
       setStaleBanner(false);
@@ -80,21 +95,14 @@ export function PatientWorkspace() {
       if (outcome.status === "executed") {
         setObsValue("");
         await refetch();
-        // Pull the free reassessment the backend already ran, and refresh
-        // the resource check from a cheap hospital-state read (see
-        // src/lib/resourceCheck.ts) instead of re-running the full pipeline.
-        const actions = (outcome.data as any)?.actions as Array<any> | undefined;
-        const reassessed = actions?.find((a) => a.tool === "run_triage_assessment" && a.status === "executed");
-        if (reassessed?.data) {
-          setAssessment(reassessed.data as AssessmentResult);
-          setStaleBanner(false);
-          try {
-            const hs = await api.hospitalState();
-            setResourceCheck(computeResourceCheck(reassessed.data.department, hs.departments));
-          } catch {
-            // non-fatal — resource panel just won't refresh this round
-          }
-        }
+        // The backend's piggybacked reassessment (add_patient_observation's
+        // server-side auto-rerun) has no hospital_id to work with and always
+        // runs against the default hospital's routing policy — trusting it
+        // here would silently show the wrong hospital's operational
+        // department/resource picture whenever a non-default hospital is
+        // selected. Re-run the same hospital-scoped call the "Run
+        // assessment" button uses instead of reading that payload.
+        await runAssessment();
       }
     } finally {
       setObsBusy(false);

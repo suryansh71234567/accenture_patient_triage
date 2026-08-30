@@ -20,6 +20,20 @@ from typing import Any, Dict, List, Optional
 logger = logging.getLogger(__name__)
 
 
+def department_of(patient: "SimulatedPatient") -> Optional[str]:
+    """
+    A patient's current department queue, mirroring the frontend's own
+    getDeptForPatient() grouping logic: the operational (resource-aware)
+    department if triaged, else the clinical preference, else unknown.
+    Single canonical definition reused by queue reordering and overrides so
+    "which department queue is this patient in" is never computed two
+    different ways.
+    """
+    op = patient.operational_decision or {}
+    ca = patient.clinical_assessment or {}
+    return op.get("operational_department") or ca.get("department")
+
+
 class PatientStatus(str, Enum):
     """Lifecycle statuses for a simulated patient."""
     ARRIVED = "ARRIVED"
@@ -310,6 +324,48 @@ class PatientFlowManager:
         logger.info(
             "Patient %s moved from position %d to %d. Note: %s",
             patient_id, idx, new_index, note or "(none)",
+        )
+        return True
+
+    def reorder_within_department(
+        self,
+        patient_id: str,
+        department: str,
+        new_index: int,
+        note: str = "",
+    ) -> bool:
+        """
+        Move a patient to a new position among only the patients currently
+        routed to `department` (department_of()), preserving every other
+        patient's relative position in the underlying single waiting-queue
+        list. No per-department queue is duplicated — department queues are
+        always a view over this one list (department_of()), same as the
+        existing frontend grouping.
+
+        Returns False if the patient isn't found or isn't currently in
+        `department` (e.g. stale client-side drag target).
+        """
+        idx = next((i for i, p in enumerate(self._waiting_queue) if p.patient_id == patient_id), None)
+        if idx is None:
+            return False
+        patient = self._waiting_queue[idx]
+        if department_of(patient) != department:
+            return False
+
+        self._waiting_queue.pop(idx)
+        dept_members = [p for p in self._waiting_queue if department_of(p) == department]
+        new_index = max(0, min(new_index, len(dept_members)))
+        if new_index >= len(dept_members):
+            insert_at = (self._waiting_queue.index(dept_members[-1]) + 1) if dept_members else len(self._waiting_queue)
+        else:
+            insert_at = self._waiting_queue.index(dept_members[new_index])
+        self._waiting_queue.insert(insert_at, patient)
+
+        if note:
+            patient.metadata["queue_note"] = note
+        logger.info(
+            "Patient %s reordered within %s queue to position %d. Note: %s",
+            patient_id, department, new_index, note or "(none)",
         )
         return True
 

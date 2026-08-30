@@ -166,6 +166,13 @@ def run_triage_assessment(patient_data: Dict[str, Any]) -> ToolResult:
         "operational_department":    operational_department,
         "resource_constraint":       resource_constraint,
         "human_review_recommended":  human_review_recommended,
+        # True only when a hospital-calibrated Bayesian/RL policy actually
+        # ran (hospital_routing is not None) — distinguishes "policy checked
+        # capacity and found none needed" from "no calibrated policy exists
+        # for this hospital, so no resource check happened at all". Callers
+        # that have their own capacity fallback (e.g. HospitalSimulator)
+        # need this to know whether resource_constraint=False is trustworthy.
+        "policy_applied":            bool(hospital_routing),
         "department_reasoning":      result.get("department_reasoning"),
         "acuity_tier":               result.get("acuity_tier"),
         "reconciled_admission_risk": result.get("reconciled_admission_risk"),

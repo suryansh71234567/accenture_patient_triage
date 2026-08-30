@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "../api/client";
+import { useSession } from "../state/SessionContext";
 
 interface Props {
   onSuccess: () => void;
@@ -38,6 +39,7 @@ const inputCls =
   "rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-ink-faint)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-400)] transition";
 
 export function ManualIntakeForm({ onSuccess, onClose }: Props) {
+  const { hospitalId } = useSession();
   const [form, setForm] = useState({
     patient_id: "",
     chief_complaint: "",
@@ -82,6 +84,7 @@ export function ManualIntakeForm({ onSuccess, onClose }: Props) {
         dbp: num(form.dbp),
         temperature: num(form.temperature),
         pain: num(form.pain),
+        hospital_id: hospitalId,
       });
       setResult({ has_history: res.has_history, history_text: res.history_text, patient_id: res.patient_id });
     } catch (e: unknown) {

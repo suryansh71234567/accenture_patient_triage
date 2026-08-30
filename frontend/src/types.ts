@@ -81,6 +81,49 @@ export interface HospitalStateResponse {
   fetched_at: string;
 }
 
+export interface DepartmentConfigInput {
+  capacity: number;
+  occupied: number;
+  status: "OPEN" | "CLOSED" | "RESTRICTED";
+}
+
+export interface RegisterHospitalResult {
+  hospital_id: string;
+  hospital_name: string;
+}
+
+export interface CalibrationScenario {
+  scenario_id: string;
+  description: string;
+  candidate_departments: string[];
+  preferred_department: string;
+  reason: string;
+}
+
+export interface CalibrationScenariosResponse {
+  hospital_id: string;
+  scenario_count: number;
+  scenarios: CalibrationScenario[];
+}
+
+export interface CalibrationStatus {
+  hospital_id: string;
+  calibrated: boolean;
+}
+
+export interface CalibrationSubmitResult {
+  hospital_id: string;
+  calibrated: boolean;
+  trained_scenarios: number | null;
+  artifact_path: string;
+}
+
+export interface HospitalInfo {
+  hospital_id: string;
+  hospital_name: string;
+  config_path: string;
+}
+
 export interface DashboardDepartment {
   name: string;
   capacity: number;
@@ -136,20 +179,35 @@ export interface ScenarioInfo {
   arrival_rate_per_hour: number;
 }
 
+export interface OperationalDecision {
+  clinical_department: string;
+  operational_department: string;
+  // Phase 9: immutable AI/policy recommendation snapshot + override tracking.
+  ai_operational_department: string;
+  nurse_override: boolean;
+  override_reason: string | null;
+  available_beds_in_clinical_dept: number;
+  operating_mode: string;
+  lambda: number;
+  capacity_warning: boolean;
+  confirmation_required: boolean;
+  recommendation_summary: string;
+}
+
 export interface TriageResult {
   patient_id: string;
   clinical_assessment: AssessmentResult;
-  operational_decision: {
-    clinical_department: string;
-    operational_department: string;
-    available_beds_in_clinical_dept: number;
-    operating_mode: string;
-    lambda: number;
-    capacity_warning: boolean;
-    confirmation_required: boolean;
-    recommendation_summary: string;
-  };
+  operational_decision: OperationalDecision;
   patient: WaitingPatient & { department?: string | null };
+}
+
+export interface OverrideResult {
+  patient_id: string;
+  previous_department: string | null;
+  ai_operational_department: string | null;
+  operational_department: string;
+  nurse_override: true;
+  override_reason: string | null;
 }
 
 // ---- Agent chat ----

@@ -398,9 +398,23 @@ class AgentRuntime:
         tool_name      : Registered tool name.
         kwargs         : Tool arguments.
         agent_state    : If provided, updates hospital_state_timestamp after
-                         hospital state reads.
+                         hospital state reads, and — for any tool whose
+                         schema accepts hospital_id — fills it in from the
+                         session's currently-selected hospital when the
+                         caller (LLM or direct kwargs) didn't already supply
+                         one. This is what makes chat hospital-scoped: the
+                         nurse selects a hospital in the UI, /api/chat stamps
+                         it onto AgentState every turn (see api_server.py),
+                         and every tool call in this turn's LLM loop resolves
+                         against that hospital instead of silently falling
+                         back to "default".
         approval_token : Required for WRITE tools.
         """
+        if agent_state is not None and agent_state.hospital_id and "hospital_id" not in kwargs:
+            spec = self.tool_registry.get(tool_name)
+            if spec is not None and "hospital_id" in spec.input_schema.get("properties", {}):
+                kwargs = {**kwargs, "hospital_id": agent_state.hospital_id}
+
         result = self.executor.execute(tool_name, kwargs, approval_token)
         self._working_memory.add_tool_result(result.to_dict())
 
@@ -784,13 +798,15 @@ _SKILL_KEYWORDS: List[tuple] = [
         "record that", "now reading",
     ) + _VITAL_KEYWORDS),
     ("routing", (
-        "route", "transfer", "move ", "send her to", "send him to",
+        "route", "routing", "transfer", "move ", "send her to", "send him to",
         "which department", "admit to", "admit her", "admit him",
     )),
     ("hospital_status", (
-        "hospital state", "occupancy", "capacity", "how full",
+        "hospital state", "hospital status", "occupancy", "capacity", "how full",
         "beds available", "available beds", "icu beds", "bed count",
-        "operating mode", "hospital load",
+        "operating mode", "hospital load", "queue", "queues", "constrained",
+        "bottleneck", "need attention", "attention first", "flagged",
+        "most full", "busiest", "waiting patients",
     )),
     ("xgb_explanation", (
         "xgboost", "feature attribution", "model attribution",

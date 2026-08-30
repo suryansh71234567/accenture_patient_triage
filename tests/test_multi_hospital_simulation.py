@@ -110,6 +110,50 @@ class TestIndependentSimulations:
         from triageguard_agent.hospital.hospital_registry import DEFAULT_HOSPITAL_ID
         assert sim_default.state_service is sandbox.get(DEFAULT_HOSPITAL_ID).state_service
 
+    def test_non_default_hospital_starts_with_empty_queue(self, sandbox):
+        """A newly registered (non-default) hospital must start with zero
+        patients — no shared demo-pool patients — so it can be populated
+        with its own real arrivals via manual intake / triggered arrivals."""
+        sim = HospitalSimulator(hospital_id="hosp_a", scenario="NORMAL_DAY")
+        assert sim.patient_flow.waiting_count == 0
+        assert sim.patient_flow.admitted_count == 0
+
+
+class TestPresimulatedPatientIsolation:
+    """Phase 7 finding: build_simulated_patient() used to assign the
+    module-level pool_entry's clinical_assessment/operational_decision
+    dicts directly onto the new SimulatedPatient (no copy). Since demo
+    patients can be built more than once from the same template (e.g. the
+    default hospital reloading a scenario), that aliasing let a later
+    mutation (operating_mode/lambda) silently leak into an earlier build's
+    already-displayed patient data. Only the default hospital receives
+    demo patients (non-default hospitals start empty — see
+    HospitalSimulator._inject_presimulated_patients), so this is tested
+    directly against build_simulated_patient() rather than via two
+    hospitals."""
+
+    def test_build_simulated_patient_does_not_alias_template_dicts(self):
+        from triageguard_agent.simulation.presimulated_patients import (
+            build_simulated_patient,
+            get_patient_by_id,
+        )
+
+        entry = get_patient_by_id("10016742")
+        assert entry is not None
+
+        patient_1 = build_simulated_patient(entry, sim_time_min=0)
+        patient_2 = build_simulated_patient(entry, sim_time_min=0)
+
+        # Same template, but must be independent dict objects, not aliases
+        # of the shared module-level pool entry.
+        assert patient_1.operational_decision is not patient_2.operational_decision
+        assert patient_1.clinical_assessment is not patient_2.clinical_assessment
+
+        # Mutating one build's copy must never affect the other's.
+        original_mode_2 = patient_2.operational_decision["operating_mode"]
+        patient_1.operational_decision["operating_mode"] = "CRITICAL"
+        assert patient_2.operational_decision["operating_mode"] == original_mode_2
+
 
 class TestHospitalIdentityThroughSimulation:
     def test_simulated_patient_hospital_id_reaches_pipeline(self, sandbox, monkeypatch):

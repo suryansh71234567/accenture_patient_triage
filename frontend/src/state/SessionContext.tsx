@@ -11,6 +11,8 @@ import { api } from "../api/client";
 import type { AgentResponse, ChatEntry, ToolExecuteResult } from "../types";
 
 const SESSION_STORAGE_KEY = "triageguard.session_id";
+const HOSPITAL_STORAGE_KEY = "triageguard.hospital_id";
+const DEFAULT_HOSPITAL_ID = "default";
 
 interface PendingDirectAction {
   tool_name: string;
@@ -22,6 +24,11 @@ interface SessionContextValue {
   sessionId: string | null;
   ready: boolean;
   role: string;
+
+  // Which registered hospital's simulation/state the UI is scoped to.
+  // No picker yet (Phase 1) — always "default" until one is added.
+  hospitalId: string;
+  setHospitalId: (hospitalId: string) => void;
 
   // Conversational chat (agent as primary interface)
   history: ChatEntry[];
@@ -47,6 +54,10 @@ interface SessionContextValue {
 
   // Bumped every time a write action commits, so pages can refetch.
   mutationTick: number;
+  // For writes that don't go through proposeAction/sendChat (e.g. plain
+  // REST calls like hospital registration) but still need pages such as
+  // HospitalSelector to refetch.
+  bumpMutationTick: () => void;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -62,6 +73,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [role] = useState("nurse");
+  const [hospitalId, setHospitalIdState] = useState<string>(() => {
+    try {
+      return localStorage.getItem(HOSPITAL_STORAGE_KEY) ?? DEFAULT_HOSPITAL_ID;
+    } catch {
+      return DEFAULT_HOSPITAL_ID;
+    }
+  });
   const [history, setHistory] = useState<ChatEntry[]>([]);
   const [chatBusy, setChatBusy] = useState(false);
   const [chatAwaitingConfirmation, setChatAwaitingConfirmation] = useState(false);
@@ -109,6 +127,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const setHospitalId = useCallback((id: string) => {
+    setHospitalIdState(id);
+    try {
+      localStorage.setItem(HOSPITAL_STORAGE_KEY, id);
+    } catch {
+      // ignore — falls back to in-memory state only, same as session_id's bootstrap failure mode
+    }
+  }, []);
+
   const sendChat = useCallback(
     async (text: string) => {
       if (!sessionId || !text.trim()) return;
@@ -119,7 +146,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // stale Confirm/Cancel pair clickable once the turn has moved on.
       setAwaitingEntryId(null);
       try {
-        const response: AgentResponse = await api.chat(sessionId, text);
+        const response: AgentResponse = await api.chat(sessionId, text, hospitalId);
         const entryId = nextId();
         setHistory((h) => [...h, { kind: "agent", response, id: entryId }]);
         setChatAwaitingConfirmation(response.human_approval_required);
@@ -150,7 +177,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setChatBusy(false);
       }
     },
-    [sessionId]
+    [sessionId, hospitalId]
   );
 
   const resolveChatConfirmation = useCallback(
@@ -216,10 +243,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [sessionId]
   );
 
+  const bumpMutationTick = useCallback(() => setMutationTick((t) => t + 1), []);
+
   const value: SessionContextValue = {
     sessionId,
     ready,
     role,
+    hospitalId,
+    setHospitalId,
     history,
     chatBusy,
     chatAwaitingConfirmation,
@@ -233,6 +264,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     resolveDirectAction,
     anyPending: chatAwaitingConfirmation || pendingDirectAction !== null,
     mutationTick,
+    bumpMutationTick,
   };
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

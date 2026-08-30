@@ -12,6 +12,7 @@ Scenario-based selection:
 """
 
 from __future__ import annotations
+import copy
 from typing import Any, Dict, List
 from triageguard_agent.simulation.patient_flow import SimulatedPatient, PatientStatus
 
@@ -521,9 +522,15 @@ def build_simulated_patient(pool_entry: Dict[str, Any], sim_time_min: int) -> Si
         status=PatientStatus.ARRIVED,
         metadata=dict(pool_entry.get("metadata", {})),
     )
-    # Pre-bake the assessment — this is the key part, no ML call needed
+    # Pre-bake the assessment — this is the key part, no ML call needed.
+    # Deep-copy: pool_entry's dicts are module-level, shared across every
+    # hospital's simulator. HospitalSimulator._inject_presimulated_patients
+    # mutates patient.operational_decision in place (operating_mode/lambda) —
+    # without copying, two hospitals' patients built from the same template
+    # would alias the same dict, letting one hospital's mode/lambda overwrite
+    # what another hospital (or an earlier scenario load) already displayed.
     if "clinical_assessment" in pool_entry:
-        p.clinical_assessment = pool_entry["clinical_assessment"]
+        p.clinical_assessment = copy.deepcopy(pool_entry["clinical_assessment"])
     if "operational_decision" in pool_entry:
-        p.operational_decision = pool_entry["operational_decision"]
+        p.operational_decision = copy.deepcopy(pool_entry["operational_decision"])
     return p

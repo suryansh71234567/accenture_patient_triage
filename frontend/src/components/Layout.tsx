@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { ChatDock } from "./ChatDock";
+import { HospitalSelector } from "./HospitalSelector";
 import { PendingActionModal } from "./PendingActionModal";
 import { useSession } from "../state/SessionContext";
 
@@ -8,6 +9,7 @@ const NAV = [
   { to: "/", label: "Dashboard", icon: "◧" },
   { to: "/live", label: "Live Hospital", icon: "▣" },
   { to: "/patients", label: "Patients", icon: "☰" },
+  { to: "/hospitals", label: "Hospitals", icon: "⛨" },
 ];
 
 export function Layout() {
@@ -26,6 +28,12 @@ export function Layout() {
             <p className="text-sm font-bold leading-tight text-[var(--color-ink)]">TriageGuard</p>
             <p className="text-[10px] leading-tight text-[var(--color-ink-faint)]">Clinical triage assistant</p>
           </div>
+        </div>
+        <div className="px-5 pb-4">
+          <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--color-ink-faint)]">
+            Hospital
+          </label>
+          <HospitalSelector />
         </div>
         <div className="flex flex-col gap-0.5 px-3">
           {NAV.map((item) => (

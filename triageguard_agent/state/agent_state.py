@@ -49,6 +49,13 @@ class AgentState:
     active_patient_id       : Patient currently being discussed, if any.
     active_encounter_id     : Encounter ID for the current patient, if any.
     active_task             : What workflow is currently active.
+    hospital_id             : Which registered hospital this session is
+                               currently scoped to (None -> "default", same
+                               resolution every hospital-aware tool already
+                               uses). Stamped by api_server.py's /api/chat
+                               handler from the frontend's selected hospital
+                               on every turn — never inferred from tool
+                               output, so it never goes stale mid-session.
     hospital_state_timestamp: When hospital state was last fetched (UTC).
     last_assessment_reference: Key/ID of the last triage result (for reference).
     pending_action          : A proposed WRITE action awaiting confirmation.
@@ -60,6 +67,7 @@ class AgentState:
     active_patient_id: Optional[str] = None
     active_encounter_id: Optional[str] = None
     active_task: Optional[str] = "idle"
+    hospital_id: Optional[str] = None
     hospital_state_timestamp: Optional[datetime] = None
     last_assessment_reference: Optional[str] = None
     pending_action: Optional[Dict[str, Any]] = None
@@ -129,6 +137,7 @@ class AgentState:
             "active_patient_id": self.active_patient_id,
             "active_encounter_id": self.active_encounter_id,
             "active_task": self.active_task,
+            "hospital_id": self.hospital_id,
             "hospital_state_timestamp": (
                 self.hospital_state_timestamp.isoformat()
                 if self.hospital_state_timestamp

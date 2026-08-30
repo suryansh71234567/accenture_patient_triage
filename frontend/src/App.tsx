@@ -5,6 +5,7 @@ import { Dashboard } from "./pages/Dashboard";
 import { LiveHospital } from "./pages/LiveHospital";
 import { PatientList } from "./pages/PatientList";
 import { PatientWorkspace } from "./pages/PatientWorkspace";
+import { HospitalOnboarding } from "./pages/HospitalOnboarding";
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
             <Route path="live" element={<LiveHospital />} />
             <Route path="patients" element={<PatientList />} />
             <Route path="patients/:id" element={<PatientWorkspace />} />
+            <Route path="hospitals" element={<HospitalOnboarding />} />
           </Route>
         </Routes>
       </BrowserRouter>

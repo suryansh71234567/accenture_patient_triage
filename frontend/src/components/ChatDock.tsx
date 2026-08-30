@@ -4,9 +4,11 @@ import { Badge, Button, DEPT_LABELS, Spinner } from "./ui";
 import type { AgentAction, AgentResponse, ChatEntry } from "../types";
 
 const SUGGESTIONS = [
-  "Show me patient 52",
-  "Why was patient 52 routed there?",
   "What's the current hospital status?",
+  "Which patients need attention first?",
+  "Show me the current queues",
+  "Which department is most constrained?",
+  "Are any patients flagged for review?",
 ];
 
 export function ChatDock() {
@@ -35,7 +37,7 @@ export function ChatDock() {
           </span>
           <div>
             <p className="text-sm font-semibold text-[var(--color-ink)]">TriageGuard Assistant</p>
-            <p className="text-[11px] text-[var(--color-ink-faint)]">Ask, update, or confirm — in plain language</p>
+            <p className="text-[11px] text-[var(--color-ink-faint)]">Hospital operations & triage copilot — in plain language</p>
           </div>
         </div>
         <button
@@ -51,7 +53,8 @@ export function ChatDock() {
         {history.length === 0 && (
           <div className="space-y-3">
             <p className="text-xs leading-relaxed text-[var(--color-ink-faint)]">
-              I'm connected to TriageGuard's clinical assessment, hospital state, and routing tools. Try:
+              I can help with hospital-wide status, queues, routing explanations, and individual patients. I explain
+              recommendations — you make the call. Try:
             </p>
             <div className="flex flex-col gap-2">
               {SUGGESTIONS.map((s) => (
