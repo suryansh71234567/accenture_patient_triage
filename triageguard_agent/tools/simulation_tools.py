@@ -95,7 +95,16 @@ def trigger_patient_arrival(
 
 
 def triage_simulated_patient(patient_id: str, hospital_id: Optional[str] = None) -> ToolResult:
-    """Run full Clinical + Operational triage evaluation for a waiting patient."""
+    """
+    Run full Clinical + Operational triage (first triage) or re-triage
+    (already TRIAGED, not yet admitted) evaluation for a patient.
+
+    Calls the exact same HospitalSimulator.triage_patient() the REST
+    endpoint (POST /api/simulation/triage/{id}) calls, so the agent/chat
+    entry point and the REST entry point behave identically — neither one
+    special-cases an already-triaged patient into a stale cached result,
+    and both reject an already-admitted patient the same way.
+    """
     try:
         sim = get_simulator(hospital_id)
         patient = sim.patient_flow.get_patient(patient_id)
@@ -107,9 +116,39 @@ def triage_simulated_patient(patient_id: str, hospital_id: Optional[str] = None)
             )
         result = sim.triage_patient(patient)
         return ToolResult.ok("triage_simulated_patient", result, metadata={"hospital_id": hospital_id})
+    except ValueError as exc:
+        return ToolResult.fail("triage_simulated_patient", "INVALID_PATIENT_STATE", str(exc))
     except Exception as exc:
         logger.exception("Failed to triage simulated patient.")
         return ToolResult.fail("triage_simulated_patient", "SIMULATION_ERROR", str(exc))
+
+
+def update_simulated_patient_vitals(
+    patient_id: str,
+    hr: Optional[float] = None,
+    rr: Optional[float] = None,
+    spo2: Optional[float] = None,
+    sbp: Optional[float] = None,
+    dbp: Optional[float] = None,
+    temp: Optional[float] = None,
+    pain: Optional[float] = None,
+    hospital_id: Optional[str] = None,
+) -> ToolResult:
+    """Record new current observations/vitals for an active simulated patient."""
+    try:
+        sim = get_simulator(hospital_id)
+        vitals = {"hr": hr, "rr": rr, "spo2": spo2, "sbp": sbp, "dbp": dbp, "temp": temp, "pain": pain}
+        patient = sim.update_patient_vitals(patient_id, vitals)
+        return ToolResult.ok(
+            "update_simulated_patient_vitals", patient.to_dict(), metadata={"hospital_id": hospital_id}
+        )
+    except KeyError as exc:
+        return ToolResult.fail("update_simulated_patient_vitals", "PATIENT_NOT_FOUND", str(exc))
+    except ValueError as exc:
+        return ToolResult.fail("update_simulated_patient_vitals", "INVALID_VALUE", str(exc))
+    except Exception as exc:
+        logger.exception("Failed to update simulated patient vitals.")
+        return ToolResult.fail("update_simulated_patient_vitals", "SIMULATION_ERROR", str(exc))
 
 
 def admit_simulated_patient(
@@ -206,6 +245,41 @@ def triage_simulated_patient_spec():
         handler=lambda **kwargs: triage_simulated_patient(**kwargs),
         risk_level=COMPUTE,
         side_effect=False,
+        requires_approval=False,
+    )
+
+
+def update_simulated_patient_vitals_spec():
+    from triageguard_agent.tools.registry import ToolSpec, COMPUTE
+    return ToolSpec(
+        name="update_simulated_patient_vitals",
+        description=(
+            "Record new current observations/vitals (heart rate, respiratory rate, "
+            "SpO2, blood pressure, temperature, pain) for a patient who is active in "
+            "this hospital's live simulation (waiting queue or admitted). Use this — "
+            "not add_patient_observation, which only updates file-based historical "
+            "records — for a patient currently in the ED queue or department board. "
+            "Does not itself re-triage; call triage_simulated_patient afterward to "
+            "get a new AI/routing recommendation from the updated vitals."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "patient_id": {"type": "string", "description": "Patient ID"},
+                "hr": {"type": "number", "description": "Heart rate (bpm)"},
+                "rr": {"type": "number", "description": "Respiratory rate (/min)"},
+                "spo2": {"type": "number", "description": "Oxygen saturation (%)"},
+                "sbp": {"type": "number", "description": "Systolic blood pressure (mmHg)"},
+                "dbp": {"type": "number", "description": "Diastolic blood pressure (mmHg)"},
+                "temp": {"type": "number", "description": "Temperature (C)"},
+                "pain": {"type": "number", "description": "Pain score (0-10)"},
+                "hospital_id": _HOSPITAL_ID_PROPERTY,
+            },
+            "required": ["patient_id"],
+        },
+        handler=lambda **kwargs: update_simulated_patient_vitals(**kwargs),
+        risk_level=COMPUTE,
+        side_effect=True,
         requires_approval=False,
     )
 

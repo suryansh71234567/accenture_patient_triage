@@ -158,6 +158,10 @@ export function DepartmentQueueBoard({
                     onDragEnd={() => setDrag(null)}
                     onDrop={() => dropOnDepartment(dept, idx)}
                     onAdmit={admit}
+                    hospitalId={hospitalId}
+                    onChanged={onChanged}
+                    setBusy={setBusy}
+                    setError={setError}
                   />
                 ))
               )}
@@ -169,8 +173,18 @@ export function DepartmentQueueBoard({
   );
 }
 
+const VITAL_FIELDS: { key: "hr" | "rr" | "spo2" | "sbp" | "dbp" | "temp" | "pain"; label: string }[] = [
+  { key: "hr", label: "HR" },
+  { key: "rr", label: "RR" },
+  { key: "spo2", label: "SpO₂" },
+  { key: "sbp", label: "SBP" },
+  { key: "dbp", label: "DBP" },
+  { key: "temp", label: "Temp" },
+  { key: "pain", label: "Pain" },
+];
+
 function PatientQueueCard({
-  p, busy, isDragging, onDragStart, onDragEnd, onDrop, onAdmit,
+  p, busy, isDragging, onDragStart, onDragEnd, onDrop, onAdmit, hospitalId, onChanged, setBusy, setError,
 }: {
   p: QueuePatient;
   busy: boolean;
@@ -179,10 +193,55 @@ function PatientQueueCard({
   onDragEnd: () => void;
   onDrop: () => void;
   onAdmit: (patientId: string, department?: string) => void;
+  hospitalId: string;
+  onChanged: () => Promise<unknown>;
+  setBusy: (b: boolean) => void;
+  setError: (e: string | null) => void;
 }) {
+  const [editingVitals, setEditingVitals] = useState(false);
+  const [vitalsForm, setVitalsForm] = useState<Record<string, string>>({});
+
   const op = p.operational_decision;
   const aiDept = op?.ai_operational_department;
   const currentDept = op?.operational_department;
+  const isRetriage = Boolean(op?.retriage);
+  const priorOverrideBeforeRetriage = isRetriage && op?.previous_nurse_override;
+
+  const saveVitalsAndRetriage = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const vitals: Record<string, number> = {};
+      for (const f of VITAL_FIELDS) {
+        const raw = vitalsForm[f.key];
+        if (raw !== undefined && raw.trim() !== "") vitals[f.key] = Number(raw);
+      }
+      if (Object.keys(vitals).length > 0) {
+        await api.updateSimulatedVitals(p.patient_id, vitals, hospitalId);
+      }
+      await api.triageSimulated(p.patient_id, hospitalId);
+      setEditingVitals(false);
+      setVitalsForm({});
+      await onChanged();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const retriageOnly = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.triageSimulated(p.patient_id, hospitalId);
+      await onChanged();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <div
@@ -209,6 +268,19 @@ function PatientQueueCard({
         {p.age}y {p.sex} · {p.chief_complaint}
       </p>
 
+      {isRetriage && (
+        <div className={`mt-1.5 rounded-md px-2 py-1 text-[10px] font-semibold leading-relaxed ${
+          priorOverrideBeforeRetriage ? "bg-amber-50 text-amber-700" : "bg-sky-50 text-sky-700"
+        }`}>
+          🔄 Re-triaged — new AI recommendation, requires nurse review
+          {priorOverrideBeforeRetriage && (
+            <div className="mt-0.5 font-normal italic">
+              Prior nurse override to {DEPT_LABELS[op?.previous_operational_department ?? ""] ?? op?.previous_operational_department} no longer applies to this new assessment.
+            </div>
+          )}
+        </div>
+      )}
+
       {op?.nurse_override ? (
         <div className="mt-1.5 rounded-md bg-purple-50 px-2 py-1 text-[10px] leading-relaxed text-purple-700">
           <div>AI recommended: <strong>{DEPT_LABELS[aiDept ?? ""] ?? aiDept}</strong></div>
@@ -221,6 +293,45 @@ function PatientQueueCard({
         <div className="mt-1.5 text-[10px] leading-relaxed text-[var(--color-ink-faint)]">
           <div>AI recommended: <span className="font-medium text-[var(--color-ink-soft)]">{DEPT_LABELS[aiDept ?? ""] ?? aiDept}</span></div>
           <div>Currently queued: <span className="font-medium text-[var(--color-ink-soft)]">{DEPT_LABELS[currentDept ?? ""] ?? currentDept}</span></div>
+        </div>
+      )}
+
+      <div className="mt-1.5 flex gap-1.5">
+        <button
+          disabled={busy}
+          onClick={() => setEditingVitals((v) => !v)}
+          className="rounded border border-[var(--color-border)] px-1.5 py-0.5 text-[10px] text-[var(--color-ink-faint)] hover:bg-[var(--color-surface-raised)] disabled:opacity-30 transition"
+        >
+          {editingVitals ? "Cancel" : "Vitals"}
+        </button>
+        <button
+          disabled={busy}
+          onClick={retriageOnly}
+          title="Re-run triage using this patient's current vitals"
+          className="rounded border border-[var(--color-border)] px-1.5 py-0.5 text-[10px] text-[var(--color-ink-faint)] hover:bg-[var(--color-surface-raised)] disabled:opacity-30 transition"
+        >
+          Re-triage
+        </button>
+      </div>
+
+      {editingVitals && (
+        <div className="mt-1.5 grid grid-cols-4 gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-1.5">
+          {VITAL_FIELDS.map((f) => (
+            <input
+              key={f.key}
+              placeholder={f.label}
+              value={vitalsForm[f.key] ?? ""}
+              onChange={(e) => setVitalsForm((s) => ({ ...s, [f.key]: e.target.value }))}
+              className="w-full rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-1 py-0.5 text-[10px]"
+            />
+          ))}
+          <button
+            disabled={busy}
+            onClick={saveVitalsAndRetriage}
+            className="col-span-4 mt-0.5 rounded bg-[var(--color-brand-500)] px-1.5 py-0.5 text-[10px] font-semibold text-white hover:bg-[var(--color-brand-600)] disabled:opacity-50 transition"
+          >
+            Save vitals &amp; re-triage
+          </button>
         </div>
       )}
     </div>

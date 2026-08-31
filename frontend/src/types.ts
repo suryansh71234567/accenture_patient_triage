@@ -192,6 +192,13 @@ export interface OperationalDecision {
   capacity_warning: boolean;
   confirmation_required: boolean;
   recommendation_summary: string;
+  // Re-triage: this assessment replaced a prior one for the same patient
+  // (patient was already TRIAGED, not yet admitted). Present/true only on
+  // a re-triage result, not a first triage.
+  retriage?: boolean;
+  previous_operational_department?: string | null;
+  previous_nurse_override?: boolean;
+  previous_override_reason?: string | null;
 }
 
 export interface TriageResult {

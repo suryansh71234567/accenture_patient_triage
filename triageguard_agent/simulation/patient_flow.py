@@ -35,10 +35,41 @@ def department_of(patient: "SimulatedPatient") -> Optional[str]:
 
 
 class PatientStatus(str, Enum):
-    """Lifecycle statuses for a simulated patient."""
+    """
+    Lifecycle statuses for a simulated patient.
+
+    Canonical meaning (documented here so the "ADMITTED vs IN_TREATMENT"
+    question has one answer instead of two statuses drifting apart):
+
+        ARRIVED      -> waiting for (first) triage. Lives in the waiting
+                         queue only.
+        TRIAGED      -> clinically + operationally assessed, not yet
+                         admitted. Still lives in the waiting queue (the
+                         department queue board is this same list, grouped
+                         by operational_department — see department_of()).
+        IN_TREATMENT -> admitted and occupying a bed. This is the ONLY
+                         status PatientFlowManager.admit_patient() assigns
+                         on a non-discharge admission. It lives in the
+                         admitted cohort and is removed from the waiting
+                         queue at the moment of admission (see
+                         admit_patient() below) so "waiting" and "admitted"
+                         are always mutually exclusive collections.
+        DISCHARGED   -> treatment complete (LOS expired, or admitted
+                         straight to DISCHARGE). Lives in discharge history
+                         only.
+        TRANSFERRED  -> reserved for a future inter-facility transfer flow;
+                         not currently assigned anywhere.
+
+    ADMITTED is intentionally kept in this enum for backward compatibility
+    (external code/tests may reference the name) but is a dead value — it
+    is never assigned. IN_TREATMENT is the one canonical "admitted" status
+    the API and frontend consume; do not start assigning ADMITTED instead,
+    since that would silently split "is this patient admitted?" across two
+    different enum values again.
+    """
     ARRIVED = "ARRIVED"
     TRIAGED = "TRIAGED"
-    ADMITTED = "ADMITTED"
+    ADMITTED = "ADMITTED"  # reserved / unused — see canonical-status note above
     IN_TREATMENT = "IN_TREATMENT"
     DISCHARGED = "DISCHARGED"
     TRANSFERRED = "TRANSFERRED"
@@ -412,11 +443,25 @@ class PatientFlowManager:
         department: str,
         custom_los_min: Optional[int] = None,
     ) -> SimulatedPatient:
-        """Move a patient to the admitted cohort in the specified department."""
+        """
+        Move a patient to the admitted cohort (or discharge history) in the
+        specified department.
+
+        Also removes the patient from the waiting/triage queue — an
+        admitted or discharged patient must never remain counted as
+        "waiting"/"triaged" in the same list an admitted patient now lives
+        in elsewhere. Previously this method left the patient in
+        `_waiting_queue` after admission too, so `waiting_count` only ever
+        grew and a patient briefly existed in two collections at once;
+        removing it here makes "waiting" and "admitted" mutually exclusive
+        at the source, instead of relying on callers/UI to filter by status.
+        """
         patient.department = department
         patient.status = PatientStatus.IN_TREATMENT if department != "DISCHARGE" else PatientStatus.DISCHARGED
         if custom_los_min is not None:
             patient.expected_los_min = custom_los_min
+
+        self._waiting_queue = [p for p in self._waiting_queue if p.patient_id != patient.patient_id]
 
         if department != "DISCHARGE":
             self._admitted_cohort[patient.patient_id] = patient
@@ -424,6 +469,50 @@ class PatientFlowManager:
             self._discharged_history.append(patient)
 
         logger.info("Patient %s admitted to %s (status=%s).", patient.patient_id, department, patient.status.value)
+        return patient
+
+    def remove_patient(self, patient_id: str) -> Optional[SimulatedPatient]:
+        """
+        Remove and return a patient (by id) from whichever *active*
+        collection currently holds them — waiting queue or admitted
+        cohort — or None if not found there. Discharge history is left
+        alone (already inactive). Caller is responsible for releasing any
+        bed this patient was occupying in HospitalStateService; this method
+        only owns queue/cohort membership, mirroring get_patient()'s scope.
+
+        Used to selectively remove previously-injected demo patients on a
+        scenario switch without discarding manually-registered or
+        dynamically-arrived patients that happen to share the same
+        underlying storage (see HospitalSimulator._inject_presimulated_patients).
+        """
+        for i, p in enumerate(self._waiting_queue):
+            if p.patient_id == str(patient_id):
+                return self._waiting_queue.pop(i)
+        return self._admitted_cohort.pop(str(patient_id), None)
+
+    def update_vitals(self, patient_id: str, vitals: Dict[str, Any]) -> Optional[SimulatedPatient]:
+        """
+        Merge new current-vitals values onto an ACTIVE patient (waiting
+        queue or admitted cohort) in place — never creates a second
+        patient, never touches the file-based historical patient store.
+
+        Only non-None values in `vitals` are applied, so a partial update
+        (e.g. just heart rate) never clobbers other vitals with None.
+        Returns the updated patient, or None if patient_id isn't active
+        (discharge history is intentionally excluded — a discharged
+        encounter's vitals are historical, not "current").
+        """
+        patient = None
+        for p in self._waiting_queue:
+            if p.patient_id == str(patient_id):
+                patient = p
+                break
+        if patient is None:
+            patient = self._admitted_cohort.get(str(patient_id))
+        if patient is None:
+            return None
+
+        patient.vitals = {**patient.vitals, **{k: v for k, v in vitals.items() if v is not None}}
         return patient
 
     def advance_time(self, delta_minutes: int) -> List[SimulatedPatient]:

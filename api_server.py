@@ -541,6 +541,17 @@ def manual_arrival(req: ManualArrivalRequest) -> Dict[str, Any]:
 
     Logic
     -----
+    0. Reject if patient_id is already ACTIVE in this hospital's simulation
+       (waiting queue or admitted cohort) — including a presimulated demo
+       patient. Without this check, registering an id that collides with an
+       already-active patient (demo or real) would silently create a
+       second SimulatedPatient object sharing that id, corrupting every
+       id-keyed lookup (triage/admit/override/get_patient) and the
+       frontend's React key for that card. This is deliberately distinct
+       from step 1 below: a patient who only exists in HISTORICAL file
+       records (not currently active in this hospital's simulation) is not
+       a conflict — that is the normal "returning patient" case, and is
+       allowed to proceed exactly as before.
     1. Check whether patient_id exists in data/patients/<id>.json.
        If YES  → use stored demographics, history flags, and past medical history
                  as the baseline; overwrite vitals with whatever the nurse provided.
@@ -552,6 +563,20 @@ def manual_arrival(req: ManualArrivalRequest) -> Dict[str, Any]:
     from triageguard_agent.tools.patient_tools import get_patient_record
 
     sim = get_simulator(req.hospital_id)
+
+    # ── 0. Reject id collisions with an already-ACTIVE patient ─────────────
+    existing = sim.patient_flow.get_patient(req.patient_id)
+    if existing is not None:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Patient {req.patient_id!r} is already active in this hospital "
+                f"(status={existing.status.value}). This may be one of the "
+                "hospital's demo patients — pick a different id, or work with "
+                "the existing patient (triage/admit/override) instead of "
+                "re-registering it."
+            ),
+        )
 
     # ── 1. Look up stored patient record ───────────────────────────────────
     stored = get_patient_record(req.patient_id)
@@ -644,22 +669,23 @@ def manual_arrival(req: ManualArrivalRequest) -> Dict[str, Any]:
 
 @app.post("/api/simulation/triage/{patient_id}")
 def triage_simulated(patient_id: str, hospital_id: Optional[str] = None) -> Dict[str, Any]:
+    """
+    First triage AND re-triage both go through HospitalSimulator's one
+    canonical triage_patient() — no stale-cache shortcut here (that used to
+    return a cached result for any already-triaged patient without
+    recomputing, and diverged from the agent-tool entry point, which always
+    recomputed). Both entry points now behave identically; see
+    triage_patient()'s own docstring for the first-triage-vs-re-triage and
+    already-admitted-rejection rules.
+    """
     sim = get_simulator(hospital_id)
     patient = sim.patient_flow.get_patient(patient_id)
     if not patient:
         raise HTTPException(status_code=404, detail=f"Patient {patient_id!r} not found in simulation queue.")
-    # If the patient has pre-baked assessment, return it directly without ML pipeline
-    if patient.clinical_assessment and patient.operational_decision:
-        patient.status = __import__(
-            'triageguard_agent.simulation.patient_flow', fromlist=['PatientStatus']
-        ).PatientStatus.TRIAGED
-        return {
-            "patient_id": patient.patient_id,
-            "clinical_assessment": patient.clinical_assessment,
-            "operational_decision": patient.operational_decision,
-            "patient": patient.to_dict(),
-        }
-    return sim.triage_patient(patient)
+    try:
+        return sim.triage_patient(patient)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
 
 
 class QueueReorderRequest(BaseModel):
@@ -767,3 +793,40 @@ def admit_simulated(req: AdmitRequest) -> Dict[str, Any]:
         return {"status": "awaiting_confirmation", "tool_name": "admit_simulated_patient", "kwargs": kwargs, "description": description}
 
     return {"status": "executed" if result.success else "failed", "data": result.data, "error": result.error}
+
+
+class SimulatedVitalsUpdateRequest(BaseModel):
+    hr: Optional[float] = None
+    rr: Optional[float] = None
+    spo2: Optional[float] = None
+    sbp: Optional[float] = None
+    dbp: Optional[float] = None
+    temp: Optional[float] = None
+    pain: Optional[float] = None
+    hospital_id: Optional[str] = None
+
+
+@app.post("/api/simulation/patient/{patient_id}/vitals")
+def update_simulated_patient_vitals(patient_id: str, req: SimulatedVitalsUpdateRequest) -> Dict[str, Any]:
+    """
+    Record new current observations/vitals for an ACTIVE simulated patient
+    (waiting queue or admitted cohort) — mirrors add_patient_observation's
+    role for file-based patients, but for the hospital-scoped simulation
+    queue this app actually drives (Dashboard/Live Hospital/department
+    queue board). Does not itself re-triage — the caller/nurse calls
+    POST /api/simulation/triage/{patient_id} afterward to re-triage with
+    the updated vitals, same two-step composition add_patient_observation +
+    run_triage_assessment already uses for file-based patients.
+    """
+    sim = get_simulator(req.hospital_id)
+    vitals = {
+        "hr": req.hr, "rr": req.rr, "spo2": req.spo2,
+        "sbp": req.sbp, "dbp": req.dbp, "temp": req.temp, "pain": req.pain,
+    }
+    try:
+        patient = sim.update_patient_vitals(patient_id, vitals)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return patient.to_dict()

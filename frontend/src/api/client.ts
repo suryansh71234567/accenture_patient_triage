@@ -184,4 +184,14 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ patient_id, department, reason: reason ?? "", hospital_id }),
     }),
+
+  updateSimulatedVitals: (
+    patient_id: string,
+    vitals: { hr?: number; rr?: number; spo2?: number; sbp?: number; dbp?: number; temp?: number; pain?: number },
+    hospital_id?: string
+  ) =>
+    req<WaitingPatient>(`/api/simulation/patient/${encodeURIComponent(patient_id)}/vitals`, {
+      method: "POST",
+      body: JSON.stringify({ ...vitals, hospital_id }),
+    }),
 };

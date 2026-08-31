@@ -595,6 +595,7 @@ class AgentRuntime:
             step_simulation_time_spec,
             trigger_patient_arrival_spec,
             triage_simulated_patient_spec,
+            update_simulated_patient_vitals_spec,
             admit_simulated_patient_spec,
         )
         from triageguard_agent.tools.ingestion_tools import (
@@ -614,6 +615,7 @@ class AgentRuntime:
             step_simulation_time_spec(),
             trigger_patient_arrival_spec(),
             triage_simulated_patient_spec(),
+            update_simulated_patient_vitals_spec(),
             admit_simulated_patient_spec(),
             ingest_hospital_records_spec(),
         ]

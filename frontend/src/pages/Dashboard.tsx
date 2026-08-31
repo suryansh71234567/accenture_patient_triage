@@ -70,7 +70,7 @@ export function Dashboard() {
 
       <Card
         title="Department queues"
-        subtitle={`${data.waiting_count} waiting for triage · drag to reorder or move between departments`}
+        subtitle={`${data.untriaged_count} waiting for triage · drag to reorder or move between departments`}
         right={
           <Link to="/live" className="text-xs font-medium text-[var(--color-brand-600)] hover:underline">
             Open Live Hospital →

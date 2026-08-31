@@ -121,6 +121,10 @@ class HospitalSimulator:
         self.hospital_id = hospital_id or DEFAULT_HOSPITAL_ID
         self.events = EventEngine(start_hour=start_hour, start_minute=start_minute)
         self.patient_flow = PatientFlowManager()
+        # patient_ids currently populated by _inject_presimulated_patients,
+        # so a later scenario switch can remove exactly this set (and only
+        # this set) rather than wiping every patient — see that method.
+        self._presimulated_patient_ids: set = set()
         if state_service is not None:
             self.state_service = state_service
         else:
@@ -195,10 +199,36 @@ class HospitalSimulator:
         small set of fixed, shared patient_ids (e.g. "10016742") that would
         otherwise appear identically in every hospital, which is confusing
         for a hospital meant to be populated with its own real arrivals.
+
+        Only removes/replaces the demo patients THIS method injected on a
+        previous call (tracked in self._presimulated_patient_ids) — a
+        manually-registered patient or one from a real trigger_arrival() is
+        never touched by a scenario switch. (load_scenario's own
+        reset_clock=True path still does a full patient_flow.clear() first,
+        for explicit test/demo resets — the removal below is then just a
+        no-op on top of that, not a second wipe.)
         """
-        # Clear existing queue so switching scenarios gives a fresh state
-        self.patient_flow.clear()
         from triageguard_agent.hospital.hospital_registry import DEFAULT_HOSPITAL_ID
+
+        # Remove exactly the demo patients a previous scenario load
+        # injected — never a manually-registered or dynamically-arrived
+        # patient — releasing any bed they were occupying so occupancy
+        # stays correct.
+        for pid in self._presimulated_patient_ids:
+            removed = self.patient_flow.remove_patient(pid)
+            if (
+                removed
+                and removed.department
+                and removed.department != "DISCHARGE"
+                and self.state_service.department_exists(removed.department)
+            ):
+                curr = self.state_service.get_state(removed.department)
+                if curr and curr.get("occupied", 0) > 0:
+                    self.state_service.apply_update(
+                        removed.department, {"occupied": curr["occupied"] - 1}
+                    )
+        self._presimulated_patient_ids = set()
+
         if self.hospital_id != DEFAULT_HOSPITAL_ID:
             return
         t = self.events.sim_time_minutes
@@ -206,10 +236,27 @@ class HospitalSimulator:
         lam = load_info.get("lambda", 0.6)
         mode = load_info.get("operating_mode", "NORMAL")
 
+        # A demo-pool id could still collide with a manually-registered or
+        # dynamically-arrived patient (real patients aren't restricted to
+        # avoiding these ids) — skip injecting over an id that's already
+        # active rather than silently duplicating/clobbering it. The
+        # removal loop above already freed every id THIS method previously
+        # injected, so anything still occupied here belongs to a real
+        # patient.
+        def _id_is_free(pid: str) -> bool:
+            if self.patient_flow.get_patient(pid) is not None:
+                logger.warning(
+                    "Skipping demo patient %s for scenario %s — id already in "
+                    "use by a real (non-demo) patient in this hospital.",
+                    pid, scenario_name,
+                )
+                return False
+            return True
+
         # ── 1. Admitted patients (already in beds, using capacity) ─────
         for pid in ADMITTED_IDS_BY_SCENARIO.get(scenario_name, []):
             entry = get_patient_by_id(pid)
-            if not entry:
+            if not entry or not _id_is_free(pid):
                 continue
             patient = build_simulated_patient(entry, t)
             op = patient.operational_decision or {}
@@ -218,6 +265,7 @@ class HospitalSimulator:
             patient.department = dept
             patient.elapsed_los_min = patient.expected_los_min // 3
             self.patient_flow._admitted_cohort[patient.patient_id] = patient
+            self._presimulated_patient_ids.add(patient.patient_id)
             # Reflect in bed occupancy
             if dept != "DISCHARGE" and self.state_service.department_exists(dept):
                 curr = self.state_service.get_state(dept)
@@ -228,7 +276,7 @@ class HospitalSimulator:
         # ── 2. Triaged patients (assessment done, awaiting admission) ──
         for pid in TRIAGED_IDS_BY_SCENARIO.get(scenario_name, []):
             entry = get_patient_by_id(pid)
-            if not entry:
+            if not entry or not _id_is_free(pid):
                 continue
             patient = build_simulated_patient(entry, t)
             patient.status = PatientStatus.TRIAGED
@@ -237,17 +285,19 @@ class HospitalSimulator:
                 patient.operational_decision["operating_mode"] = mode
                 patient.operational_decision["lambda"] = lam
             self.patient_flow.enqueue_patient(patient)
+            self._presimulated_patient_ids.add(patient.patient_id)
 
         # ── 3. Waiting patients (arrived, not yet triaged) ─────────────
         for pid in WAITING_IDS_BY_SCENARIO.get(scenario_name, []):
             entry = get_patient_by_id(pid)
-            if not entry:
+            if not entry or not _id_is_free(pid):
                 continue
             patient = build_simulated_patient(entry, t)
             patient.status = PatientStatus.ARRIVED
             patient.clinical_assessment = None  # not yet triaged
             patient.operational_decision = None
             self.patient_flow.enqueue_patient(patient)
+            self._presimulated_patient_ids.add(patient.patient_id)
 
         logger.info(
             "Pre-populated scenario '%s': %d waiting, %d admitted",
@@ -371,12 +421,47 @@ class HospitalSimulator:
         """
         Execute full Clinical Assessment and reconcile with Operational Truth.
 
+        This is the ONE canonical triage/re-triage operation — both the
+        REST endpoint (POST /simulation/triage/{id}) and the agent tool
+        (triage_simulated_patient) call this method directly, so first
+        triage and re-triage behave identically regardless of entry point.
+
+        First triage vs. re-triage is derived from patient.status, not a
+        separate parameter:
+          - status == ARRIVED  -> first triage.
+          - status == TRIAGED  -> re-triage: explicitly recomputes from the
+            patient's CURRENT vitals/history (never returns a stale cached
+            result) and reconciles with any existing nurse override — see
+            the nurse-override handling below.
+          - Any admitted/discharged/transferred status -> rejected with
+            ValueError; an already-admitted patient must not be silently
+            re-triaged or have its status regressed through this path.
+
         Separates:
         1. Clinical Truth (XGBoost + RAG): What care does the patient clinically require?
         2. Operational Truth (Hospital State): What beds and resources are available right now?
         3. Operational Recommendation & Escalation: What should staff confirm/action?
         """
+        if patient.status in (
+            PatientStatus.IN_TREATMENT,
+            PatientStatus.ADMITTED,
+            PatientStatus.DISCHARGED,
+            PatientStatus.TRANSFERRED,
+        ):
+            raise ValueError(
+                f"Patient {patient.patient_id!r} is {patient.status.value} — "
+                "an already admitted/discharged/transferred patient cannot be "
+                "(re-)triaged through this operation. Only a patient who is "
+                "ARRIVED (first triage) or TRIAGED (re-triage, not yet "
+                "admitted) is eligible."
+            )
+
+        is_retriage = patient.status == PatientStatus.TRIAGED
+        previous_decision = dict(patient.operational_decision or {}) if is_retriage else None
+
         # ── 1. Clinical Truth (Pipeline or fallback) ───────────────────────
+        # Always recomputed from the patient's CURRENT vitals/history —
+        # never a cached/stale result, on first triage or re-triage alike.
         clinical_output = self._evaluate_clinical_truth(patient)
         clinical_dept = clinical_output.get("department", "ADMITTED_GEN")
         acuity_tier = clinical_output.get("acuity_tier", patient.acuity)
@@ -502,7 +587,44 @@ class HospitalSimulator:
             "capacity_warning": capacity_warning,
             "confirmation_required": confirmation_required,
             "recommendation_summary": " ".join(recommendation_notes),
+            # Explicit marker distinguishing a re-triage result from a first
+            # triage — the UI/audit trail must never have to infer this from
+            # side effects (e.g. "was clinical_assessment already set?").
+            "retriage": is_retriage,
         }
+
+        if is_retriage and previous_decision:
+            previous_op_dept = previous_decision.get("operational_department")
+            previous_override = bool(previous_decision.get("nurse_override", False))
+            previous_reason = previous_decision.get("override_reason")
+
+            # Audit trail: what this re-triage is replacing, kept visible
+            # even though it no longer governs the patient's queue
+            # placement — "do not silently erase history".
+            operational_decision["previous_operational_department"] = previous_op_dept
+            operational_decision["previous_nurse_override"] = previous_override
+            operational_decision["previous_override_reason"] = previous_reason
+
+            if previous_override:
+                # The new AI/policy recommendation replaces the old one.
+                # A nurse override made against the PREVIOUS assessment
+                # must not silently keep applying to this NEW assessment —
+                # operational_department above already holds the fresh AI
+                # recommendation (nurse_override reset to False by the base
+                # dict), and this is flagged for explicit nurse review
+                # rather than either re-applying the stale override or
+                # discarding the fact that one existed.
+                confirmation_required = True
+                operational_decision["confirmation_required"] = True
+                recommendation_notes.append(
+                    f"RE-TRIAGE: this patient had a prior nurse override to "
+                    f"{previous_op_dept} ({previous_reason or 'no reason given'}). "
+                    "That override was made against the previous assessment and "
+                    f"does not carry forward automatically — the new AI/policy "
+                    f"recommendation is {operational_dept}. Nurse review required "
+                    "before this patient is re-queued or admitted."
+                )
+                operational_decision["recommendation_summary"] = " ".join(recommendation_notes)
 
         # Update patient
         patient.clinical_assessment = clinical_output
@@ -510,8 +632,18 @@ class HospitalSimulator:
         patient.status = PatientStatus.TRIAGED
 
         self.events.emit(
-            EventType.PATIENT_TRIAGED,
-            f"Patient {patient.patient_id} triaged → Clinical: {clinical_dept}, Operational: {operational_dept}",
+            EventType.PATIENT_RETRIAGED if is_retriage else EventType.PATIENT_TRIAGED,
+            (
+                f"Patient {patient.patient_id} re-triaged → Clinical: {clinical_dept}, "
+                f"Operational: {operational_dept}"
+                + (
+                    f" (previously {previous_decision.get('operational_department')}"
+                    f"{', nurse override' if previous_decision.get('nurse_override') else ''})"
+                    if is_retriage and previous_decision else ""
+                )
+                if is_retriage
+                else f"Patient {patient.patient_id} triaged → Clinical: {clinical_dept}, Operational: {operational_dept}"
+            ),
             department=operational_dept,
             patient_id=patient.patient_id,
             data=operational_decision,
@@ -660,6 +792,83 @@ class HospitalSimulator:
             "load_ratio": load_info["load_ratio"],
             "operating_mode": load_info["operating_mode"],
         }
+
+    # Validated numeric ranges for current-vitals updates, matching the
+    # ranges triageguard_agent/tools/patient_tools.py's _OBSERVATION_FIELDS
+    # uses for the file-based patient store (heart_rate/spo2/resp_rate/sbp/
+    # dbp/temperature), keyed here by SimulatedPatient.vitals' own key names
+    # (hr/rr/spo2/sbp/dbp/temp) plus pain (0-10, not present in the
+    # file-based table). Kept local to this class rather than imported from
+    # patient_tools — same values, different key names, and importing across
+    # that module boundary would blur "file-based store" vs "live
+    # simulation" which the rest of this file deliberately keeps separate.
+    _VITALS_RANGES: Dict[str, tuple] = {
+        "hr": (0, 300), "rr": (0, 100), "spo2": (0, 100),
+        "sbp": (0, 300), "dbp": (0, 200), "temp": (30, 45), "pain": (0, 10),
+    }
+
+    def update_patient_vitals(
+        self,
+        patient_id: str,
+        vitals: Dict[str, Any],
+    ) -> SimulatedPatient:
+        """
+        Record new current observations/vitals for an ACTIVE simulated
+        patient (waiting queue or admitted cohort) in this hospital's own
+        PatientFlowManager — never creates a second patient, never touches
+        the file-based historical patient store (data/patients/*.json).
+
+        This intentionally does NOT itself trigger triage/re-triage — the
+        nurse (or caller) decides when to call triage_patient() afterward,
+        exactly like the existing add_patient_observation +
+        run_triage_assessment composition for file-based patients, without
+        duplicating that orchestration here.
+
+        Raises KeyError if the patient isn't active in this hospital, or
+        ValueError for an invalid observation type/value or a
+        discharged/transferred patient (a completed encounter's vitals are
+        historical, not "current").
+        """
+        patient = self.patient_flow.get_patient(patient_id)
+        if not patient:
+            raise KeyError(f"Patient {patient_id!r} not found in this hospital's simulation.")
+        if patient.status in (PatientStatus.DISCHARGED, PatientStatus.TRANSFERRED):
+            raise ValueError(
+                f"Patient {patient_id!r} is {patient.status.value} — cannot record "
+                "new current observations for a completed encounter."
+            )
+
+        validated: Dict[str, Any] = {}
+        for key, value in vitals.items():
+            if value is None:
+                continue
+            if key not in self._VITALS_RANGES:
+                raise ValueError(
+                    f"Unknown vital {key!r}. Must be one of: {sorted(self._VITALS_RANGES)}."
+                )
+            try:
+                numeric_value = float(value)
+            except (TypeError, ValueError):
+                raise ValueError(f"Vital {key!r} value {value!r} must be a number.")
+            lo, hi = self._VITALS_RANGES[key]
+            if not (lo <= numeric_value <= hi):
+                raise ValueError(
+                    f"Vital {key!r} value {numeric_value} is outside the valid range [{lo}, {hi}]."
+                )
+            validated[key] = int(numeric_value) if numeric_value.is_integer() else numeric_value
+
+        updated = self.patient_flow.update_vitals(patient_id, validated)
+        # update_vitals only returns None if the patient isn't active, but
+        # get_patient() above already confirmed it is — this can't be None.
+        assert updated is not None
+
+        self.events.emit(
+            EventType.PATIENT_OBSERVATION_UPDATED,
+            f"Patient {patient.patient_id}: new observations recorded ({', '.join(sorted(validated))}).",
+            patient_id=patient.patient_id,
+            data={"updated_fields": validated, "vitals": dict(patient.vitals)},
+        )
+        return updated
 
     # ------------------------------------------------------------------
     # Internal Clinical Evaluator
