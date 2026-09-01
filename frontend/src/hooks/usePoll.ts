@@ -15,16 +15,23 @@ export function usePoll<T>(
   const [loading, setLoading] = useState(true);
   const fnRef = useRef(fn);
   fnRef.current = fn;
+  // Discards a response that resolves after a newer fetch has already been
+  // issued — by the interval or by a manual refetch() — so a slow, stale
+  // response can never overwrite fresher state that already landed.
+  const seqRef = useRef(0);
 
   const refetch = useCallback(async () => {
+    const seq = ++seqRef.current;
     try {
       const result = await fnRef.current();
-      setData(result);
-      setError(null);
+      if (seq === seqRef.current) {
+        setData(result);
+        setError(null);
+      }
     } catch (err) {
-      setError(err as Error);
+      if (seq === seqRef.current) setError(err as Error);
     } finally {
-      setLoading(false);
+      if (seq === seqRef.current) setLoading(false);
     }
   }, []);
 
@@ -32,16 +39,17 @@ export function usePoll<T>(
     let cancelled = false;
     setLoading(true);
     const run = async () => {
+      const seq = ++seqRef.current;
       try {
         const result = await fnRef.current();
-        if (!cancelled) {
+        if (!cancelled && seq === seqRef.current) {
           setData(result);
           setError(null);
         }
       } catch (err) {
-        if (!cancelled) setError(err as Error);
+        if (!cancelled && seq === seqRef.current) setError(err as Error);
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled && seq === seqRef.current) setLoading(false);
       }
     };
     run();

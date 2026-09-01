@@ -45,8 +45,10 @@ export interface AssessmentResult {
   confidence_note: string;
   top_diagnoses: string[];
   red_flags: string[];
-  rag_disposition?: string;
-  rag_escalation?: string;
+  rag_trajectory?: string | null;
+  rag_urgency?: "low" | "moderate" | "high" | "critical" | "unknown" | null;
+  rag_evidence_strength?: number | null;
+  rag_escalation_concern?: boolean | null;
   rag_narrative?: string;
   _xgb_raw?: Record<string, number>;
 }
@@ -133,14 +135,35 @@ export interface DashboardDepartment {
   status: string;
 }
 
+// Short-form keys as returned by /api/simulation/* endpoints (distinct from
+// PatientVitals' long-form keys, which /api/patients/* returns instead).
+export interface SimVitals {
+  hr?: number;
+  rr?: number;
+  spo2?: number;
+  sbp?: number;
+  dbp?: number;
+  temp?: number;
+  pain?: number;
+}
+
 export interface WaitingPatient {
   patient_id: string;
   age: number;
   sex: string;
   chief_complaint: string;
-  vitals: Record<string, number>;
+  vitals: SimVitals;
   acuity: number;
   status: string;
+  // Sim-clock minute the patient arrived — combine with the dashboard's
+  // sim_time_minutes to get elapsed wait time. Always present on
+  // simulation-sourced patients; optional here only for defensiveness.
+  arrival_time_min?: number;
+  expected_los_min?: number;
+  // Only accrues once a patient is admitted (occupying a bed) — stays 0 for
+  // ARRIVED/TRIAGED patients, so it is not a general "time waited" field.
+  elapsed_los_min?: number;
+  remaining_los_min?: number;
 }
 
 export interface SimulationDashboard {

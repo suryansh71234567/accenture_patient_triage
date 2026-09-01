@@ -6,7 +6,6 @@ import type {
   CalibrationSubmitResult,
   DepartmentConfigInput,
   HospitalInfo,
-  HospitalStateResponse,
   PatientDetail,
   PatientSummary,
   OverrideResult,
@@ -107,9 +106,6 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ responses }),
     }),
-  hospitalState: (session_id?: string, hospital_id?: string) =>
-    req<HospitalStateResponse>(`/api/hospital/state${qs({ session_id, hospital_id })}`),
-
   // Simulation
   scenarios: (hospital_id?: string) =>
     req<ScenarioInfo[]>(`/api/simulation/scenarios${qs({ hospital_id })}`),
@@ -135,18 +131,6 @@ export const api = {
       `/api/simulation/triage/${encodeURIComponent(patient_id)}${qs({ hospital_id })}`,
       { method: "POST" }
     ),
-  admitSimulated: (
-    session_id: string,
-    patient_id: string,
-    department?: string,
-    custom_los_min?: number,
-    hospital_id?: string
-  ) =>
-    req<ToolExecuteResult>("/api/simulation/admit", {
-      method: "POST",
-      body: JSON.stringify({ session_id, patient_id, department, custom_los_min, hospital_id }),
-    }),
-
   manualArrival: (payload: {
     patient_id: string;
     chief_complaint: string;

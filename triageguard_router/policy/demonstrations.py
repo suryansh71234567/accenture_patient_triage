@@ -37,7 +37,13 @@ from __future__ import annotations
 import dataclasses
 from typing import Any, Dict, List, Optional
 
+from triageguard_router.policy.candidates import acuity_tier
 from triageguard_router.policy.schema import ClinicalState, DepartmentState, NurseScenario
+
+# The 5 department roles every baseline scenario template is written in
+# terms of (see _hospital() below) — distinct from a specific hospital's own
+# department names, which the onboarding flow lets a nurse choose freely.
+_CANONICAL_DEPARTMENT_CODES = ["CICU", "ICU", "ADMITTED_GEN", "ED_OBS", "DISCHARGE"]
 
 
 def _hospital(
@@ -396,29 +402,85 @@ def load_demonstrations(
         return scenarios
 
     available_departments = set(facility_config.keys())
+    dept_map = _department_role_map(available_departments)
     selected: List[NurseScenario] = []
     for scenario in scenarios:
-        if not set(scenario.candidate_departments).issubset(available_departments):
+        if not set(scenario.candidate_departments).issubset(dept_map.keys()):
             continue
-        selected.append(_adapt_scenario(scenario, facility_config, available_departments))
+        selected.append(_adapt_scenario(scenario, facility_config, dept_map))
     return selected
+
+
+def _department_role_map(available_departments: set) -> Dict[str, str]:
+    """
+    Canonical demonstration department code (CICU/ICU/ADMITTED_GEN/ED_OBS/
+    DISCHARGE) -> the real hospital department name that satisfies it, for a
+    hospital whose department names don't necessarily match those codes
+    (onboarding lets a nurse name departments freely).
+
+    A literal match — the hospital really does have a department named e.g.
+    "ICU" — always wins. Otherwise, an unmatched canonical code is satisfied
+    by any hospital department at the same acuity tier: the same
+    "an unrecognized department name defaults to ADMITTED_GEN's tier"
+    fallback candidates.py already uses for live routing (see its module
+    docstring), applied here so a hospital using its own department names
+    isn't silently excluded from every scenario that needs one. A canonical
+    code with no literal match and no same-tier department available is left
+    unmapped, and scenarios needing it are still excluded — this fills in
+    what the existing acuity-tier philosophy can safely infer, it does not
+    invent a specific clinical role (e.g. "ICU") for a department nothing
+    ever labeled that way.
+    """
+    mapping: Dict[str, str] = {}
+    for code in _CANONICAL_DEPARTMENT_CODES:
+        if code in available_departments:
+            mapping[code] = code
+
+    claimed = set(mapping.values())
+    unclaimed_by_tier: Dict[int, List[str]] = {}
+    for dept in sorted(available_departments):
+        if dept in claimed:
+            continue
+        unclaimed_by_tier.setdefault(acuity_tier(dept), []).append(dept)
+
+    for code in _CANONICAL_DEPARTMENT_CODES:
+        if code in mapping:
+            continue
+        pool = unclaimed_by_tier.get(acuity_tier(code))
+        if pool:
+            mapping[code] = pool.pop(0)
+    return mapping
+
+
+def _remap_department(name: str, dept_map: Dict[str, str]) -> str:
+    return dept_map.get(name, name)
 
 
 def _adapt_scenario(
     scenario: NurseScenario,
     facility_config: Dict[str, Any],
-    available_departments: set,
+    dept_map: Dict[str, str],
 ) -> NurseScenario:
-    """Retarget one scenario's department bed counts onto the real
-    facility's capacities. Departments the facility doesn't have (e.g. a
-    baseline CICU entry on a non-cardiac scenario) are dropped rather than
-    shown to the nurse."""
+    """Retarget one scenario's department bed counts AND department-name
+    references onto the real facility, via dept_map (canonical code -> real
+    hospital department name — see _department_role_map). A canonical
+    department the facility has no match for at all (e.g. a baseline CICU
+    entry on a non-cardiac scenario) is dropped rather than shown to the
+    nurse."""
     adapted_state = {
-        dept: _rescale_department(state, int(facility_config[dept]["capacity"]))
+        dept_map[dept]: _rescale_department(state, int(facility_config[dept_map[dept]]["capacity"]))
         for dept, state in scenario.hospital_state.items()
-        if dept in available_departments
+        if dept in dept_map
     }
-    return dataclasses.replace(scenario, hospital_state=adapted_state)
+    return dataclasses.replace(
+        scenario,
+        hospital_state=adapted_state,
+        candidate_departments=[dept_map[d] for d in scenario.candidate_departments],
+        clinical_preferred_department=_remap_department(scenario.clinical_preferred_department, dept_map),
+        preferred_department=_remap_department(scenario.preferred_department, dept_map),
+        acceptable_departments=[_remap_department(d, dept_map) for d in scenario.acceptable_departments],
+        unacceptable_departments=[_remap_department(d, dept_map) for d in scenario.unacceptable_departments],
+    )
 
 
 def _rescale_department(original: DepartmentState, target_capacity: int) -> DepartmentState:

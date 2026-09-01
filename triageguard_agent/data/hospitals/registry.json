@@ -2,5 +2,9 @@
   "1": {
     "hospital_name": "Alpha",
     "config_path": "C:\\Users\\ACER\\Desktop\\Projects\\accenture_patient_triage\\triageguard_agent\\data\\hospitals\\1\\hospital_config.json"
+  },
+  "2": {
+    "hospital_name": "alpha",
+    "config_path": "C:\\Users\\ACER\\Desktop\\Projects\\accenture_patient_triage\\triageguard_agent\\data\\hospitals\\2\\hospital_config.json"
   }
 }

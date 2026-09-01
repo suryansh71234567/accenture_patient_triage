@@ -1,41 +1,51 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-sans: "IBM Plex Sans", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
 
-  /* Clinical, calm palette */
-  --color-canvas: #f5f7fa;
-  --color-surface: #ffffff;
-  --color-surface-muted: #f0f3f7;
-  --color-border: #e1e6ed;
-  --color-ink: #10182b;
-  --color-ink-soft: #4b5768;
-  --color-ink-faint: #8792a3;
+  /* Clinical, calm palette — ported from the TriageGuard design system (oklch) */
+  --color-canvas: oklch(98% 0.005 250);
+  --color-surface: oklch(99.5% 0.002 250);
+  --color-surface-muted: oklch(96.5% 0.004 250);
+  --color-border: oklch(88% 0.006 250);
+  --color-ink: oklch(20% 0.01 255);
+  --color-ink-soft: oklch(35% 0.01 255);
+  --color-ink-faint: oklch(55% 0.01 255);
 
-  --color-brand-50: #eef4ff;
-  --color-brand-100: #dbe7ff;
-  --color-brand-500: #2f6fed;
-  --color-brand-600: #2158c9;
-  --color-brand-700: #1a459c;
+  --color-brand-50: oklch(94% 0.03 250);
+  --color-brand-100: oklch(88% 0.05 250);
+  --color-brand-400: oklch(60% 0.14 250);
+  --color-brand-500: oklch(52% 0.15 250);
+  --color-brand-600: oklch(44% 0.16 250);
+  --color-brand-700: oklch(38% 0.15 250);
 
-  --color-teal-50: #ecfbf8;
-  --color-teal-500: #0ea394;
-  --color-teal-600: #0b8377;
+  --color-teal-50: oklch(95% 0.03 195);
+  --color-teal-500: oklch(52% 0.1 195);
+  --color-teal-600: oklch(44% 0.1 195);
 
-  --color-critical-50: #fef2f2;
-  --color-critical-100: #fde3e3;
-  --color-critical-500: #dc2626;
-  --color-critical-600: #b91c1c;
+  --color-critical-50: oklch(94% 0.045 25);
+  --color-critical-100: oklch(88% 0.06 25);
+  --color-critical-500: oklch(50% 0.19 25);
+  --color-critical-600: oklch(43% 0.17 25);
 
-  --color-warn-50: #fffaeb;
-  --color-warn-100: #fef0c7;
-  --color-warn-500: #d97706;
-  --color-warn-600: #b45309;
+  --color-warn-50: oklch(94% 0.04 65);
+  --color-warn-100: oklch(88% 0.06 65);
+  --color-warn-500: oklch(56% 0.17 45);
+  --color-warn-600: oklch(45% 0.1 65);
 
-  --color-good-50: #ecfdf3;
-  --color-good-100: #d7f7e2;
-  --color-good-500: #12966a;
-  --color-good-600: #0a7a54;
+  --color-good-50: oklch(95% 0.03 150);
+  --color-good-100: oklch(88% 0.06 150);
+  --color-good-500: oklch(48% 0.13 150);
+  --color-good-600: oklch(35% 0.11 150);
+
+  /* Nurse-override / re-triage accents — distinct from brand/warn/critical
+     so a human decision always reads differently from an AI-driven state. */
+  --color-override-50: oklch(94% 0.03 300);
+  --color-override-500: oklch(48% 0.15 300);
+  --color-override-600: oklch(40% 0.15 300);
+  --color-retriage-50: oklch(94% 0.03 250);
+  --color-retriage-600: oklch(48% 0.15 250);
 }
 
 :root {

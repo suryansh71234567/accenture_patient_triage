@@ -244,6 +244,31 @@ export function PatientWorkspace() {
               </Badge>
             </div>
 
+            {(assessment.rag_trajectory ||
+              assessment.rag_urgency ||
+              assessment.rag_evidence_strength != null ||
+              assessment.rag_escalation_concern != null) && (
+              <div className="mt-4 space-y-1.5 border-t border-[var(--color-border)] pt-3">
+                <p className="text-xs font-semibold text-[var(--color-ink-soft)]">Contextual trajectory (RAG)</p>
+                {assessment.rag_trajectory && (
+                  <p className="text-xs leading-relaxed text-[var(--color-ink)]">{assessment.rag_trajectory}</p>
+                )}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {assessment.rag_urgency && (
+                    <Badge tone={urgencyTone(assessment.rag_urgency)}>{assessment.rag_urgency} urgency</Badge>
+                  )}
+                  {assessment.rag_evidence_strength != null && (
+                    <Badge tone="neutral">Evidence strength {assessment.rag_evidence_strength}/5</Badge>
+                  )}
+                  {assessment.rag_escalation_concern != null && (
+                    <Badge tone={assessment.rag_escalation_concern ? "warn" : "good"} dot>
+                      {assessment.rag_escalation_concern ? "Escalation concern flagged" : "No escalation concern"}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            )}
+
             {assessment.rag_narrative && (
               <div className="mt-4 border-t border-[var(--color-border)] pt-3">
                 <button
@@ -375,6 +400,21 @@ function extractVital(o: Observation): { field: string | null; value: unknown } 
     if (o[f] !== undefined) return { field: f.replace("_", " "), value: o[f] };
   }
   return { field: null, value: null };
+}
+
+function urgencyTone(urgency: string): "good" | "brand" | "warn" | "critical" | "neutral" {
+  switch (urgency) {
+    case "low":
+      return "good";
+    case "moderate":
+      return "brand";
+    case "high":
+      return "warn";
+    case "critical":
+      return "critical";
+    default:
+      return "neutral";
+  }
 }
 
 function isDanger(kind: string, value: number | null): boolean {

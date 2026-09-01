@@ -632,6 +632,23 @@ def manual_arrival(req: ManualArrivalRequest) -> Dict[str, Any]:
         "pain": req.pain if req.pain is not None else (stored.get("pain") if stored else 0),
     }
 
+    # ── 3.5 Validate temperature is a physiologically plausible °C reading ─
+    # Nurse-entered temperature is Celsius everywhere else in the app (the
+    # UI, update_patient_vitals, patient_tools' file-based validation) — a
+    # value entered in the wrong unit must be rejected here too, not
+    # silently accepted and fed into the live clinical assessment. Bounds
+    # mirror HospitalSimulator._VITALS_RANGES["temp"] exactly.
+    if vitals["temp"] is not None:
+        temp_lo, temp_hi = sim._VITALS_RANGES["temp"]
+        if not (temp_lo <= vitals["temp"] <= temp_hi):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Vital 'temp' value {vitals['temp']} is outside the valid "
+                    f"range [{temp_lo}, {temp_hi}] (expected degrees Celsius)."
+                ),
+            )
+
     # ── 4. Build and enqueue SimulatedPatient ──────────────────────────────
     patient = SimulatedPatient(
         patient_id=req.patient_id,

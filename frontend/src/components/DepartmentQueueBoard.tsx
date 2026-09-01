@@ -1,15 +1,12 @@
 import { useState } from "react";
 import { api } from "../api/client";
 import { useSession } from "../state/SessionContext";
-import { Badge, Button, DEPT_LABELS, acuityLabel, acuityTone } from "./ui";
-import type { OperationalDecision, SimulationDashboard } from "../types";
-
-// The four nurse-facing operational queues — always rendered (even empty)
-// for whichever of these departments the hospital actually has, so a
-// patient can be dragged into a currently-empty queue. Shared by Dashboard
-// and LiveHospital so both pages present the same queues the same way
-// (Phase 9's reorder/override APIs, unchanged).
-const QUEUE_DEPARTMENTS = ["ICU", "CICU", "ADMITTED_GEN", "ED_OBS"];
+import { AdmissionConfirmModal } from "./AdmissionConfirmModal";
+import { OverrideReasonModal } from "./OverrideReasonModal";
+import { RetriageModal } from "./RetriageModal";
+import { VitalsEditModal } from "./VitalsEditModal";
+import { AcuityPill, Button, DEPT_LABELS, acuityMeta, aiDeptOf, deptStatus, fmtWaitMinutes } from "./ui";
+import type { OperationalDecision, SimVitals, SimulationDashboard } from "../types";
 
 type QueuePatient = {
   patient_id: string;
@@ -18,6 +15,8 @@ type QueuePatient = {
   chief_complaint: string;
   acuity: number;
   status: string;
+  vitals?: SimVitals;
+  arrival_time_min?: number;
   clinical_assessment?: Record<string, unknown> | null;
   operational_decision?: OperationalDecision | null;
   metadata?: Record<string, unknown> | null;
@@ -60,15 +59,23 @@ export function DepartmentQueueBoard({
   onChanged: () => Promise<unknown>;
   compact?: boolean;
 }) {
-  const { sessionId, proposeAction } = useSession();
+  const { sessionId, proposeAction, bumpMutationTick } = useSession();
   const [busy, setBusy] = useState(false);
   const [drag, setDrag] = useState<{ patientId: string; sourceDept: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [overrideTarget, setOverrideTarget] = useState<{ patientId: string; from: string; to: string; targetIndex: number } | null>(null);
+  const [vitalsPatient, setVitalsPatient] = useState<QueuePatient | null>(null);
+  const [retriagePatient, setRetriagePatient] = useState<QueuePatient | null>(null);
+  const [admitTarget, setAdmitTarget] = useState<{ patientId: string; department: string; reason: string } | null>(null);
 
   const fullQueue = ((dash as unknown as { full_queue?: QueuePatient[] }).full_queue ?? []) as QueuePatient[];
   const triagedPatients = fullQueue.filter((p) => p.status === "TRIAGED");
-  const hospitalDeptNames = new Set(dash.departments.map((d) => d.name));
-  const queueDepts = QUEUE_DEPARTMENTS.filter((d) => hospitalDeptNames.has(d));
+  // Always rendered (even empty) for whichever departments this hospital
+  // actually has — read live from the dashboard response, never a fixed
+  // list, so a patient can be dragged into a currently-empty queue for any
+  // hospital regardless of its department names. Shared by Dashboard and
+  // LiveHospital so both pages present the same queues the same way.
+  const queueDepts = dash.departments.map((d) => d.name);
   const byDept = groupByDept(triagedPatients, queueDepts);
 
   const admit = async (patientId: string, department?: string) => {
@@ -86,6 +93,16 @@ export function DepartmentQueueBoard({
     }
   };
 
+  const requestAdmit = (p: QueuePatient) => {
+    const op = p.operational_decision;
+    const dept = op?.operational_department ?? "";
+    if (op?.confirmation_required) {
+      setAdmitTarget({ patientId: p.patient_id, department: dept, reason: op.recommendation_summary });
+    } else {
+      admit(p.patient_id, dept);
+    }
+  };
+
   // Same department = reorder priority; different department = nurse
   // override of the operational destination. Infeasible moves surface the
   // backend's rejection reason rather than silently no-op'ing.
@@ -99,6 +116,7 @@ export function DepartmentQueueBoard({
       setBusy(true);
       try {
         await api.reorderDepartmentQueue(active.patientId, targetDept, targetIndex, hospitalId);
+        bumpMutationTick();
         await onChanged();
       } catch (err) {
         setError((err as Error).message);
@@ -108,13 +126,34 @@ export function DepartmentQueueBoard({
       return;
     }
 
-    const reason = window.prompt(
-      `Override AI routing: move ${active.patientId} from ${DEPT_LABELS[active.sourceDept] ?? active.sourceDept} to ${DEPT_LABELS[targetDept] ?? targetDept}.\nReason (optional):`
-    );
-    if (reason === null) return; // nurse cancelled — do nothing
+    setOverrideTarget({ patientId: active.patientId, from: active.sourceDept, to: targetDept, targetIndex });
+  };
+
+  const confirmOverride = async (reason: string) => {
+    if (!overrideTarget) return;
     setBusy(true);
     try {
-      await api.overrideDepartment(active.patientId, targetDept, reason, hospitalId);
+      await api.overrideDepartment(overrideTarget.patientId, overrideTarget.to, reason, hospitalId);
+      bumpMutationTick();
+      await onChanged();
+      setOverrideTarget(null);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveVitals = async (patientId: string, vitals: SimVitals) => {
+    setBusy(true);
+    setError(null);
+    try {
+      if (Object.keys(vitals).length > 0) {
+        await api.updateSimulatedVitals(patientId, vitals, hospitalId);
+      }
+      await api.triageSimulated(patientId, hospitalId);
+      bumpMutationTick();
+      setVitalsPatient(null);
       await onChanged();
     } catch (err) {
       setError((err as Error).message);
@@ -123,68 +162,156 @@ export function DepartmentQueueBoard({
     }
   };
 
+  const retriageOnly = async (patientId: string) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.triageSimulated(patientId, hospitalId);
+      bumpMutationTick();
+      await onChanged();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const requestMove = (p: QueuePatient, sourceDept: string, targetDept: string) => {
+    if (targetDept === sourceDept) return;
+    // Routes through the exact same nurse-override confirmation flow a
+    // cross-department drag uses — a keyboard move is not a shortcut that
+    // skips the reason prompt, it's the same action via a different input.
+    setOverrideTarget({ patientId: p.patient_id, from: sourceDept, to: targetDept, targetIndex: 0 });
+  };
+
   const listHeight = compact ? "max-h-[340px]" : "max-h-[620px]";
+  // `xl:` is a viewport breakpoint, not a container query — on Dashboard the
+  // board's actual container is much narrower than the viewport (it shares
+  // the row with a Recent Activity panel), so forcing 4 columns there at
+  // wide viewports crams each column too narrow for its card content.
+  // compact mode caps at 2 columns instead; the full-width LiveHospital
+  // board keeps 4.
+  const gridCols = compact ? "md:grid-cols-2" : "md:grid-cols-2 xl:grid-cols-4";
 
   return (
     <div className="space-y-3">
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">{error}</div>
+        <div className="rounded-lg border border-[var(--color-critical-100)] bg-[var(--color-critical-50)] px-3 py-2 text-xs text-[var(--color-critical-600)]">{error}</div>
       )}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {[...byDept.entries()].map(([dept, patients]) => (
-          <div
-            key={dept}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => { e.preventDefault(); dropOnDepartment(dept, patients.length); }}
-            className="flex flex-col rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]"
-          >
-            <div className="flex items-center justify-between rounded-t-2xl border-b border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3.5 py-2.5">
-              <p className="text-sm font-bold text-[var(--color-ink)]">{DEPT_LABELS[dept] ?? dept}</p>
-              <Badge tone="neutral">{patients.length} patient{patients.length !== 1 ? "s" : ""}</Badge>
-            </div>
-            <div className={`min-h-[110px] flex-1 space-y-2 overflow-y-auto p-2.5 ${listHeight}`}>
-              {patients.length === 0 ? (
-                <div className="flex h-full min-h-[90px] items-center justify-center rounded-xl border border-dashed border-[var(--color-border)] px-3 text-center text-[11px] text-[var(--color-ink-faint)]">
-                  Drop patient here
+      <div className={`grid grid-cols-1 gap-4 ${gridCols}`}>
+        {[...byDept.entries()].map(([dept, patients]) => {
+          const capacity = dash.departments.find((d) => d.name === dept);
+          const status = capacity ? deptStatus(capacity.occupied, capacity.capacity) : null;
+          return (
+            <div
+              key={dept}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => { e.preventDefault(); dropOnDepartment(dept, patients.length); }}
+              className="flex flex-col rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]"
+            >
+              <div className="rounded-t-xl border-b border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3.5 py-2.5">
+                <div className="mb-2 flex items-baseline justify-between gap-2">
+                  <p className="text-[13px] font-bold text-[var(--color-ink)]">{DEPT_LABELS[dept] ?? dept}</p>
+                  {status && (
+                    <span
+                      className="rounded-[5px] px-[7px] py-[2px] text-[9.5px] font-bold tracking-[.05em]"
+                      style={{ background: status.bg, color: status.color }}
+                    >
+                      {status.label}
+                    </span>
+                  )}
                 </div>
-              ) : (
-                patients.map((p, idx) => (
-                  <PatientQueueCard
-                    key={p.patient_id}
-                    p={p}
-                    busy={busy}
-                    isDragging={drag?.patientId === p.patient_id}
-                    onDragStart={() => setDrag({ patientId: p.patient_id, sourceDept: dept })}
-                    onDragEnd={() => setDrag(null)}
-                    onDrop={() => dropOnDepartment(dept, idx)}
-                    onAdmit={admit}
-                    hospitalId={hospitalId}
-                    onChanged={onChanged}
-                    setBusy={setBusy}
-                    setError={setError}
-                  />
-                ))
-              )}
+                {capacity && (
+                  <>
+                    <div className="mb-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+                      <div className="h-full rounded-full" style={{ width: `${status?.pct ?? 0}%`, background: status?.color }} />
+                    </div>
+                    <div className="flex items-center justify-between text-[10.5px] text-[var(--color-ink-faint)]">
+                      <span className="font-mono">{capacity.occupied}/{capacity.capacity} beds</span>
+                      <span>{patients.length} in queue</span>
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className={`min-h-[110px] flex-1 space-y-2 overflow-y-auto p-2.5 ${listHeight}`}>
+                {patients.length === 0 ? (
+                  <div className="flex h-full min-h-[90px] items-center justify-center rounded-xl border border-dashed border-[var(--color-border)] px-3 text-center text-[11px] text-[var(--color-ink-faint)]">
+                    Drop patient here
+                  </div>
+                ) : (
+                  patients.map((p, idx) => (
+                    <PatientQueueCard
+                      key={p.patient_id}
+                      p={p}
+                      busy={busy}
+                      isDragging={drag?.patientId === p.patient_id}
+                      onDragStart={() => setDrag({ patientId: p.patient_id, sourceDept: dept })}
+                      onDragEnd={() => setDrag(null)}
+                      onDrop={() => dropOnDepartment(dept, idx)}
+                      onAdmit={() => requestAdmit(p)}
+                      onEditVitals={() => setVitalsPatient(p)}
+                      onRetriage={() => retriageOnly(p.patient_id)}
+                      onOpenRetriageDetail={() => setRetriagePatient(p)}
+                      simTimeMinutes={dash.sim_time_minutes}
+                      moveTargets={queueDepts.filter((d) => d !== dept)}
+                      onMoveTo={(targetDept) => requestMove(p, dept, targetDept)}
+                    />
+                  ))
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
+
+      {overrideTarget && (
+        <OverrideReasonModal
+          patientId={overrideTarget.patientId}
+          from={overrideTarget.from}
+          to={overrideTarget.to}
+          busy={busy}
+          onConfirm={confirmOverride}
+          onCancel={() => setOverrideTarget(null)}
+        />
+      )}
+
+      {vitalsPatient && (
+        <VitalsEditModal
+          patientId={vitalsPatient.patient_id}
+          busy={busy}
+          onSave={(vitals) => saveVitals(vitalsPatient.patient_id, vitals)}
+          onClose={() => setVitalsPatient(null)}
+        />
+      )}
+
+      {retriagePatient && retriagePatient.operational_decision && (
+        <RetriageModal
+          patientId={retriagePatient.patient_id}
+          vitals={retriagePatient.vitals ?? {}}
+          acuity={retriagePatient.acuity}
+          decision={retriagePatient.operational_decision}
+          onAcknowledge={() => setRetriagePatient(null)}
+          onClose={() => setRetriagePatient(null)}
+        />
+      )}
+
+      {admitTarget && (
+        <AdmissionConfirmModal
+          patientId={admitTarget.patientId}
+          department={admitTarget.department}
+          reason={admitTarget.reason}
+          hospitalId={hospitalId}
+          onClose={() => setAdmitTarget(null)}
+          onSuccess={() => { setAdmitTarget(null); onChanged(); }}
+        />
+      )}
     </div>
   );
 }
 
-const VITAL_FIELDS: { key: "hr" | "rr" | "spo2" | "sbp" | "dbp" | "temp" | "pain"; label: string }[] = [
-  { key: "hr", label: "HR" },
-  { key: "rr", label: "RR" },
-  { key: "spo2", label: "SpO₂" },
-  { key: "sbp", label: "SBP" },
-  { key: "dbp", label: "DBP" },
-  { key: "temp", label: "Temp" },
-  { key: "pain", label: "Pain" },
-];
-
 function PatientQueueCard({
-  p, busy, isDragging, onDragStart, onDragEnd, onDrop, onAdmit, hospitalId, onChanged, setBusy, setError,
+  p, busy, isDragging, onDragStart, onDragEnd, onDrop, onAdmit, onEditVitals, onRetriage, onOpenRetriageDetail, simTimeMinutes,
+  moveTargets, onMoveTo,
 }: {
   p: QueuePatient;
   busy: boolean;
@@ -192,56 +319,25 @@ function PatientQueueCard({
   onDragStart: () => void;
   onDragEnd: () => void;
   onDrop: () => void;
-  onAdmit: (patientId: string, department?: string) => void;
-  hospitalId: string;
-  onChanged: () => Promise<unknown>;
-  setBusy: (b: boolean) => void;
-  setError: (e: string | null) => void;
+  onAdmit: () => void;
+  onEditVitals: () => void;
+  onRetriage: () => void;
+  onOpenRetriageDetail: () => void;
+  simTimeMinutes: number;
+  /** Departments this card's patient isn't already in — a keyboard-usable
+   * alternative to cross-department drag, not a shortcut around it: picking
+   * one opens the same nurse-override confirmation drag-and-drop uses. */
+  moveTargets: string[];
+  onMoveTo: (targetDept: string) => void;
 }) {
-  const [editingVitals, setEditingVitals] = useState(false);
-  const [vitalsForm, setVitalsForm] = useState<Record<string, string>>({});
-
   const op = p.operational_decision;
-  const aiDept = op?.ai_operational_department;
+  const aiDept = op ? aiDeptOf(op) : undefined;
   const currentDept = op?.operational_department;
   const isRetriage = Boolean(op?.retriage);
   const priorOverrideBeforeRetriage = isRetriage && op?.previous_nurse_override;
 
-  const saveVitalsAndRetriage = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      const vitals: Record<string, number> = {};
-      for (const f of VITAL_FIELDS) {
-        const raw = vitalsForm[f.key];
-        if (raw !== undefined && raw.trim() !== "") vitals[f.key] = Number(raw);
-      }
-      if (Object.keys(vitals).length > 0) {
-        await api.updateSimulatedVitals(p.patient_id, vitals, hospitalId);
-      }
-      await api.triageSimulated(p.patient_id, hospitalId);
-      setEditingVitals(false);
-      setVitalsForm({});
-      await onChanged();
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const retriageOnly = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      await api.triageSimulated(p.patient_id, hospitalId);
-      await onChanged();
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
+  const waitLabel =
+    p.arrival_time_min != null ? fmtWaitMinutes(Math.max(0, simTimeMinutes - p.arrival_time_min)) : null;
 
   return (
     <div
@@ -250,6 +346,7 @@ function PatientQueueCard({
       onDragEnd={onDragEnd}
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => { e.preventDefault(); e.stopPropagation(); onDrop(); }}
+      style={{ borderLeftColor: acuityMeta(p.acuity).color, borderLeftWidth: 3 }}
       className={`cursor-move rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5 text-xs transition ${
         isDragging ? "opacity-40" : "hover:border-[var(--color-brand-300)]"
       }`}
@@ -257,32 +354,52 @@ function PatientQueueCard({
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-1.5">
           <span className="shrink-0 text-[var(--color-ink-faint)]" title="Drag to reorder or move to another department">⠿</span>
-          <Badge tone={acuityTone(p.acuity)}>{acuityLabel(p.acuity)}</Badge>
-          <p className="truncate text-sm font-semibold text-[var(--color-ink)]">{p.patient_id}</p>
+          <AcuityPill acuity={p.acuity} />
         </div>
-        <Button size="sm" disabled={busy} onClick={() => onAdmit(p.patient_id, currentDept ?? "")}>
-          {op?.confirmation_required ? "Review" : "Admit"}
-        </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          {waitLabel && <span className="font-mono text-[10px] text-[var(--color-ink-faint)]">{waitLabel}</span>}
+          <Button size="sm" disabled={busy} onClick={onAdmit}>
+            {op?.confirmation_required ? "Review" : "Admit"}
+          </Button>
+        </div>
       </div>
-      <p className="mt-1 truncate text-[11px] text-[var(--color-ink-faint)]">
-        {p.age}y {p.sex} · {p.chief_complaint}
-      </p>
+      <div className="mt-1 flex items-baseline justify-between gap-2">
+        <p className="truncate font-mono text-sm font-semibold text-[var(--color-ink)]">{p.patient_id}</p>
+        <span className="shrink-0 text-[10.5px] text-[var(--color-ink-faint)]">{p.age}y {p.sex}</span>
+      </div>
+      <p className="mt-0.5 truncate text-[11px] text-[var(--color-ink-faint)]">{p.chief_complaint}</p>
+      {p.vitals && (p.vitals.hr != null || p.vitals.spo2 != null || p.vitals.sbp != null) && (
+        <div className="mt-1 flex gap-2.5 font-mono text-[10px] text-[var(--color-ink-faint)]">
+          {p.vitals.hr != null && <span>HR {p.vitals.hr}</span>}
+          {p.vitals.spo2 != null && <span>SpO₂ {p.vitals.spo2}%</span>}
+          {p.vitals.sbp != null && p.vitals.dbp != null && <span>{p.vitals.sbp}/{p.vitals.dbp}</span>}
+        </div>
+      )}
 
       {isRetriage && (
-        <div className={`mt-1.5 rounded-md px-2 py-1 text-[10px] font-semibold leading-relaxed ${
-          priorOverrideBeforeRetriage ? "bg-amber-50 text-amber-700" : "bg-sky-50 text-sky-700"
-        }`}>
+        <button
+          onClick={onOpenRetriageDetail}
+          className="mt-1.5 w-full rounded-md px-2 py-1 text-left text-[10px] font-semibold leading-relaxed"
+          style={
+            priorOverrideBeforeRetriage
+              ? { background: "var(--color-warn-50)", color: "var(--color-warn-600)" }
+              : { background: "var(--color-retriage-50)", color: "var(--color-retriage-600)" }
+          }
+        >
           🔄 Re-triaged — new AI recommendation, requires nurse review
           {priorOverrideBeforeRetriage && (
             <div className="mt-0.5 font-normal italic">
               Prior nurse override to {DEPT_LABELS[op?.previous_operational_department ?? ""] ?? op?.previous_operational_department} no longer applies to this new assessment.
             </div>
           )}
-        </div>
+        </button>
       )}
 
       {op?.nurse_override ? (
-        <div className="mt-1.5 rounded-md bg-purple-50 px-2 py-1 text-[10px] leading-relaxed text-purple-700">
+        <div
+          className="mt-1.5 rounded-md px-2 py-1 text-[10px] leading-relaxed"
+          style={{ background: "var(--color-override-50)", color: "var(--color-override-600)" }}
+        >
           <div>AI recommended: <strong>{DEPT_LABELS[aiDept ?? ""] ?? aiDept}</strong></div>
           <div className="font-semibold">
             ✋ Nurse override: {DEPT_LABELS[aiDept ?? ""] ?? aiDept} → {DEPT_LABELS[currentDept ?? ""] ?? currentDept}
@@ -299,41 +416,41 @@ function PatientQueueCard({
       <div className="mt-1.5 flex gap-1.5">
         <button
           disabled={busy}
-          onClick={() => setEditingVitals((v) => !v)}
+          onClick={onEditVitals}
           className="rounded border border-[var(--color-border)] px-1.5 py-0.5 text-[10px] text-[var(--color-ink-faint)] hover:bg-[var(--color-surface-raised)] disabled:opacity-30 transition"
         >
-          {editingVitals ? "Cancel" : "Vitals"}
+          Vitals
         </button>
         <button
           disabled={busy}
-          onClick={retriageOnly}
+          onClick={onRetriage}
           title="Re-run triage using this patient's current vitals"
           className="rounded border border-[var(--color-border)] px-1.5 py-0.5 text-[10px] text-[var(--color-ink-faint)] hover:bg-[var(--color-surface-raised)] disabled:opacity-30 transition"
         >
           Re-triage
         </button>
-      </div>
-
-      {editingVitals && (
-        <div className="mt-1.5 grid grid-cols-4 gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-1.5">
-          {VITAL_FIELDS.map((f) => (
-            <input
-              key={f.key}
-              placeholder={f.label}
-              value={vitalsForm[f.key] ?? ""}
-              onChange={(e) => setVitalsForm((s) => ({ ...s, [f.key]: e.target.value }))}
-              className="w-full rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-1 py-0.5 text-[10px]"
-            />
-          ))}
-          <button
+        {moveTargets.length > 0 && (
+          <select
+            aria-label={`Move ${p.patient_id} to a different department`}
+            title="Keyboard-accessible alternative to dragging this card to another department"
             disabled={busy}
-            onClick={saveVitalsAndRetriage}
-            className="col-span-4 mt-0.5 rounded bg-[var(--color-brand-500)] px-1.5 py-0.5 text-[10px] font-semibold text-white hover:bg-[var(--color-brand-600)] disabled:opacity-50 transition"
+            value=""
+            onChange={(e) => {
+              const targetDept = e.target.value;
+              if (targetDept) onMoveTo(targetDept);
+              e.target.value = "";
+            }}
+            className="rounded border border-[var(--color-border)] px-1.5 py-0.5 text-[10px] text-[var(--color-ink-faint)] hover:bg-[var(--color-surface-raised)] disabled:opacity-30 transition"
           >
-            Save vitals &amp; re-triage
-          </button>
-        </div>
-      )}
+            <option value="">Move to ▾</option>
+            {moveTargets.map((d) => (
+              <option key={d} value={d}>
+                {DEPT_LABELS[d] ?? d}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
     </div>
   );
 }

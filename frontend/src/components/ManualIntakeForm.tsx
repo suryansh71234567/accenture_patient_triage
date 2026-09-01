@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "../api/client";
+import { useModalA11y } from "../hooks/useModalA11y";
 import { useSession } from "../state/SessionContext";
 
 interface Props {
@@ -25,13 +26,13 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-1">
-      <label className="text-xs font-semibold text-[var(--color-ink-soft)] uppercase tracking-wide">
+    <label className="flex flex-col gap-1">
+      <span className="text-xs font-semibold text-[var(--color-ink-soft)] uppercase tracking-wide">
         {label}
         {hint && <span className="ml-1 text-[10px] font-normal text-[var(--color-ink-faint)]">({hint})</span>}
-      </label>
+      </span>
       {children}
-    </div>
+    </label>
   );
 }
 
@@ -58,6 +59,10 @@ export function ManualIntakeForm({ onSuccess, onClose }: Props) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ has_history: boolean; history_text: string; patient_id: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The result view has no separate "just close" affordance — its only
+  // way out is "Done" (onSuccess + onClose) — so Escape mirrors that,
+  // matching whichever exit path the current view actually offers.
+  const containerRef = useModalA11y(result ? () => { onSuccess(); onClose(); } : onClose);
 
   const set = (k: string, v: string | number) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -96,7 +101,7 @@ export function ManualIntakeForm({ onSuccess, onClose }: Props) {
 
   if (result) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div ref={containerRef} tabIndex={-1} className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" role="dialog" aria-modal="true">
         <div className="w-full max-w-sm rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-2xl space-y-4">
           <h2 className="text-lg font-bold text-[var(--color-ink)]">Patient Added to Queue</h2>
 
@@ -129,8 +134,8 @@ export function ManualIntakeForm({ onSuccess, onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="w-full max-w-2xl rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+    <div ref={containerRef} tabIndex={-1} className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" role="dialog" aria-modal="true">
+      <div className="w-full max-w-[600px] rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-7 py-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
         <div className="flex items-start justify-between">
           <div>
             <h2 className="text-lg font-bold text-[var(--color-ink)]">Manual Patient Intake</h2>
@@ -142,7 +147,7 @@ export function ManualIntakeForm({ onSuccess, onClose }: Props) {
         </div>
 
         {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">{error}</div>
+          <div className="rounded-lg border border-[var(--color-critical-100)] bg-[var(--color-critical-50)] px-3 py-2 text-xs text-[var(--color-critical-600)]">{error}</div>
         )}
 
         {/* Identity */}
@@ -211,8 +216,8 @@ export function ManualIntakeForm({ onSuccess, onClose }: Props) {
             <Field label="DBP" hint="mmHg">
               <input type="number" className={inputCls} placeholder="e.g. 88" value={form.dbp} onChange={(e) => set("dbp", e.target.value)} />
             </Field>
-            <Field label="Temperature" hint="°F">
-              <input type="number" step="0.1" className={inputCls} placeholder="e.g. 98.7" value={form.temperature} onChange={(e) => set("temperature", e.target.value)} />
+            <Field label="Temperature" hint="°C">
+              <input type="number" step="0.1" className={inputCls} placeholder="e.g. 37.2" value={form.temperature} onChange={(e) => set("temperature", e.target.value)} />
             </Field>
           </div>
         </div>

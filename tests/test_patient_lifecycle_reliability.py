@@ -196,6 +196,78 @@ class TestDuplicatePatientId:
 
 
 # ---------------------------------------------------------------------------
+# 3.5 Manual-arrival temperature range validation (must be °C, matching
+#     HospitalSimulator._VITALS_RANGES["temp"] == (30, 45) exactly, so a
+#     value entered in the wrong unit — e.g. Fahrenheit — is rejected here
+#     the same way it would be via the vitals-update path, instead of being
+#     silently accepted into the live clinical assessment).
+# ---------------------------------------------------------------------------
+
+class TestManualArrivalTemperatureValidation:
+    def _client(self, monkeypatch):
+        monkeypatch.setattr(simulation_tools, "_simulator_instances", {})
+        import api_server
+        from fastapi.testclient import TestClient
+        return TestClient(api_server.app), simulation_tools.get_simulator(None)
+
+    def _payload(self, patient_id: str, temperature: float) -> dict:
+        return {
+            "patient_id": patient_id,
+            "chief_complaint": "fever",
+            "age": 40,
+            "sex": "M",
+            "acuity": 3,
+            "temperature": temperature,
+        }
+
+    def test_temperature_just_below_range_rejected(self, monkeypatch):
+        client, sim = self._client(monkeypatch)
+        sim.patient_flow.clear()
+        r = client.post("/api/simulation/manual-arrival", json=self._payload("TEMP-LOW", 29.9))
+        assert r.status_code == 400
+        assert sim.patient_flow.get_patient("TEMP-LOW") is None
+
+    def test_temperature_at_lower_bound_accepted(self, monkeypatch):
+        client, sim = self._client(monkeypatch)
+        sim.patient_flow.clear()
+        r = client.post("/api/simulation/manual-arrival", json=self._payload("TEMP-LO-OK", 30))
+        assert r.status_code == 200
+        assert sim.patient_flow.get_patient("TEMP-LO-OK") is not None
+
+    def test_temperature_at_upper_bound_accepted(self, monkeypatch):
+        client, sim = self._client(monkeypatch)
+        sim.patient_flow.clear()
+        r = client.post("/api/simulation/manual-arrival", json=self._payload("TEMP-HI-OK", 45))
+        assert r.status_code == 200
+        assert sim.patient_flow.get_patient("TEMP-HI-OK") is not None
+
+    def test_temperature_just_above_range_rejected(self, monkeypatch):
+        client, sim = self._client(monkeypatch)
+        sim.patient_flow.clear()
+        r = client.post("/api/simulation/manual-arrival", json=self._payload("TEMP-HIGH", 45.1))
+        assert r.status_code == 400
+        assert sim.patient_flow.get_patient("TEMP-HIGH") is None
+
+    def test_fahrenheit_style_value_rejected(self, monkeypatch):
+        """The exact regression case: a nurse entering a Fahrenheit-looking
+        value (e.g. 98.7) must be rejected, not silently treated as 98.7°C."""
+        client, sim = self._client(monkeypatch)
+        sim.patient_flow.clear()
+        r = client.post("/api/simulation/manual-arrival", json=self._payload("TEMP-FAHRENHEIT", 98.7))
+        assert r.status_code == 400
+        assert sim.patient_flow.get_patient("TEMP-FAHRENHEIT") is None
+
+    def test_temperature_omitted_still_accepted(self, monkeypatch):
+        """No temperature provided at all must not be affected by this change."""
+        client, sim = self._client(monkeypatch)
+        sim.patient_flow.clear()
+        payload = {"patient_id": "TEMP-NONE", "chief_complaint": "test", "age": 40, "sex": "M", "acuity": 3}
+        r = client.post("/api/simulation/manual-arrival", json=payload)
+        assert r.status_code == 200
+        assert sim.patient_flow.get_patient("TEMP-NONE") is not None
+
+
+# ---------------------------------------------------------------------------
 # 4. Scenario switch preserves real patients, replaces demo patients
 # ---------------------------------------------------------------------------
 
