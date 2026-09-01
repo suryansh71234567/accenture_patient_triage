@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { api } from "../api/client";
 import { usePoll } from "../hooks/usePoll";
 import { useSession } from "../state/SessionContext";
+import { TriageModal } from "../components/TriageModal";
 import {
   Badge,
   Button,
@@ -15,7 +16,17 @@ import {
   acuityLabel,
   acuityTone,
 } from "../components/ui";
-import type { AssessmentResult, Observation, ResourceCheck } from "../types";
+import type { AssessmentResult, Observation, OperationalDecision, PatientVitals, ResourceCheck, SimVitals } from "../types";
+
+type QueueEntry = {
+  patient_id: string;
+  age: number;
+  sex: string;
+  chief_complaint: string;
+  status: string;
+  vitals?: SimVitals;
+  operational_decision?: OperationalDecision | null;
+};
 
 const OBS_TYPES: { value: string; label: string; unit: string }[] = [
   { value: "heart_rate", label: "Heart rate", unit: "bpm" },
@@ -31,12 +42,18 @@ export function PatientWorkspace() {
   const { sessionId, proposeAction, mutationTick, hospitalId } = useSession();
 
   const { data: detail, loading, refetch } = usePoll(() => api.getPatient(id), 20000, [id]);
+  // Chart lookup (above) and live simulation state are separate stores (see
+  // PatientList.tsx's union) — this page needs both to know whether Triage
+  // Patient should activate a chart-only record or triage an already-ARRIVED
+  // one, and to hide the action once the patient is already triaged+.
+  const { data: dash, refetch: refetchDash } = usePoll(() => api.dashboard(hospitalId), 8000, [hospitalId]);
   const [assessment, setAssessment] = useState<AssessmentResult | null>(null);
   const [resourceCheck, setResourceCheck] = useState<ResourceCheck | null>(null);
   const [assessing, setAssessing] = useState(false);
   const [assessError, setAssessError] = useState<string | null>(null);
   const [staleBanner, setStaleBanner] = useState(false);
   const [showReasoning, setShowReasoning] = useState(false);
+  const [showTriage, setShowTriage] = useState(false);
 
   const [obsType, setObsType] = useState(OBS_TYPES[0].value);
   const [obsValue, setObsValue] = useState("");
@@ -120,6 +137,19 @@ export function PatientWorkspace() {
 
   const { summary, observations } = detail;
 
+  const fullQueue = ((dash?.full_queue as unknown as QueueEntry[]) ?? []);
+  const simEntry = fullQueue.find((p) => p.patient_id === summary.patient_id) ?? null;
+  const departmentOptions = dash?.departments.map((d) => d.name) ?? [];
+  // Triage Patient is only meaningful before triage exists: activate (for a
+  // chart-only patient with no live record) or triage directly (for one
+  // already ARRIVED). Once TRIAGED/IN_TREATMENT/DISCHARGED there's nothing
+  // new to do here — the same real triage state is already correct
+  // everywhere else (Patients list, Live Operations, drawer).
+  const canTriage =
+    !simEntry
+      ? summary.age != null && summary.sex != null && summary.chief_complaint.trim() !== ""
+      : simEntry.status === "ARRIVED";
+
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-8">
       <Link to="/patients" className="text-xs text-[var(--color-ink-faint)] hover:text-[var(--color-ink)]">
@@ -136,17 +166,24 @@ export function PatientWorkspace() {
             {summary.age ?? "—"}y {summary.sex ?? ""} · {summary.chief_complaint}
           </p>
         </div>
-        <Button onClick={runAssessment} disabled={assessing}>
-          {assessing ? (
-            <>
-              <Spinner className="h-4 w-4" /> Running assessment…
-            </>
-          ) : assessment ? (
-            "Refresh assessment"
-          ) : (
-            "Run assessment"
+        <div className="flex items-center gap-2">
+          {canTriage && (
+            <Button variant="secondary" onClick={() => setShowTriage(true)}>
+              Triage Patient
+            </Button>
           )}
-        </Button>
+          <Button onClick={runAssessment} disabled={assessing}>
+            {assessing ? (
+              <>
+                <Spinner className="h-4 w-4" /> Running assessment…
+              </>
+            ) : assessment ? (
+              "Refresh assessment"
+            ) : (
+              "Run assessment"
+            )}
+          </Button>
+        </div>
       </div>
 
       {staleBanner && (
@@ -298,8 +335,41 @@ export function PatientWorkspace() {
           subtitle="Run an assessment to see clinical risk, red flags, and routing recommendations for this patient."
         />
       )}
+
+      {showTriage && (
+        <TriageModal
+          patientId={summary.patient_id}
+          age={simEntry ? simEntry.age : summary.age!}
+          sex={simEntry ? simEntry.sex : summary.sex!}
+          chiefComplaint={simEntry ? simEntry.chief_complaint : summary.chief_complaint}
+          vitals={simEntry ? (simEntry.vitals ?? {}) : toSimVitals(summary.vitals)}
+          hospitalId={hospitalId}
+          departmentOptions={departmentOptions}
+          activation={
+            simEntry
+              ? undefined
+              : { chiefComplaint: summary.chief_complaint, age: summary.age!, sex: summary.sex!, acuity: summary.acuity }
+          }
+          onClose={() => setShowTriage(false)}
+          onDone={() => { setShowTriage(false); refetchDash(); }}
+        />
+      )}
     </div>
   );
+}
+
+// TriageModal's vitals display expects SimVitals' short keys; the chart
+// record carries PatientVitals' long keys — purely a display mapping.
+function toSimVitals(v: PatientVitals): SimVitals {
+  return {
+    hr: v.heart_rate ?? undefined,
+    rr: v.resp_rate ?? undefined,
+    spo2: v.spo2 ?? undefined,
+    sbp: v.sbp ?? undefined,
+    dbp: v.dbp ?? undefined,
+    temp: v.temperature ?? undefined,
+    pain: v.pain_score ?? undefined,
+  };
 }
 
 function RoutingPanel({

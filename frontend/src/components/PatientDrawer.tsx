@@ -100,11 +100,11 @@ export function PatientDrawer({
                 ))}
               </div>
 
-              {status === undefined && (
-                <EmptyLine text="No simulation record for this patient — this is a chart-based record, not an active ED arrival." />
-              )}
-
-              {status === "ARRIVED" && (
+              {/* undefined = chart-only, never entered the live queue — same
+                  "not yet triaged" treatment as an ARRIVED simulation
+                  patient, since Triage Patient can now bring either into an
+                  active visit and triage them in one action. */}
+              {(status === "ARRIVED" || status === undefined) && (
                 <>
                   <EmptyLine text="Not yet triaged. Clinical and operational assessment has not been performed." tone="warn" />
                   {onTriage && (

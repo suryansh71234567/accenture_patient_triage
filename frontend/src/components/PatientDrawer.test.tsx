@@ -36,15 +36,25 @@ const decision: OperationalDecision = {
 };
 
 describe("PatientDrawer", () => {
-  it("shows a chart-only message when there is no simulation record", () => {
-    renderDrawer({ status: undefined });
-    expect(screen.getByText(/No simulation record for this patient/)).toBeInTheDocument();
+  it("shows the same not-yet-triaged treatment for a chart-only patient as an ARRIVED one (Fix 2)", () => {
+    renderDrawer({ status: undefined, onTriage: vi.fn() });
+    expect(screen.getByText("Not yet triaged. Clinical and operational assessment has not been performed.")).toBeInTheDocument();
+    expect(screen.getByText("Triage Patient")).toBeInTheDocument();
   });
 
-  it("shows the Triage button for an ARRIVED (waiting) patient", () => {
+  it("hides the Triage Patient button for a chart-only patient when no real activation is possible (no onTriage passed)", () => {
+    renderDrawer({ status: undefined });
+    expect(screen.getByText(/Not yet triaged/)).toBeInTheDocument();
+    expect(screen.queryByText("Triage Patient")).not.toBeInTheDocument();
+  });
+
+  it("shows the Triage button for an ARRIVED (waiting) patient and calls onTriage on click", () => {
     const onTriage = vi.fn();
     renderDrawer({ status: "ARRIVED", onTriage });
-    expect(screen.getByText("Triage Patient")).toBeInTheDocument();
+    const btn = screen.getByText("Triage Patient");
+    expect(btn).toBeInTheDocument();
+    fireEvent.click(btn);
+    expect(onTriage).toHaveBeenCalled();
   });
 
   it("shows the AI recommendation for a TRIAGED patient", () => {

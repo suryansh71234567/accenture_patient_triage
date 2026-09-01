@@ -10,6 +10,7 @@ vi.mock("../api/client", () => ({
     listHospitals: vi.fn(),
     updateSimulatedVitals: vi.fn(),
     triageSimulated: vi.fn(),
+    manualArrival: vi.fn(),
   },
 }));
 vi.mock("../state/SessionContext", () => ({
@@ -39,6 +40,11 @@ beforeEach(() => {
           operating_mode: "NORMAL", lambda: 1, capacity_warning: false, confirmation_required: false,
           recommendation_summary: "ICU need.",
         },
+      },
+      // No chart record for this one — created purely by Random Arrival/Register Patient/a scenario.
+      {
+        patient_id: "PAT-101", age: 34, sex: "F", chief_complaint: "fall", acuity: 3, status: "ARRIVED",
+        arrival_time_min: 5, vitals: { hr: 88 },
       },
     ],
     waiting_count: 0, triaged_count: 1, untriaged_count: 0, admitted_count: 0,
@@ -76,5 +82,58 @@ describe("PatientList table", () => {
     await waitFor(() => expect(screen.getByText("52")).toBeInTheDocument());
     fireEvent.click(screen.getByText("52"));
     expect(screen.getByText("ICU need.")).toBeInTheDocument();
+  });
+
+  it("shows a simulation-only patient with no chart record (e.g. created via Random Arrival)", async () => {
+    render(<PatientList />);
+    await waitFor(() => expect(screen.getByText("PAT-101")).toBeInTheDocument());
+    const row = screen.getByText("PAT-101").closest("button")!;
+    expect(row.textContent).toContain("34F");
+    expect(row.textContent).toContain("fall");
+    expect(row.textContent).toContain("arrived");
+  });
+
+  it("opens the drawer for a chart-less simulation-only patient using its live record", async () => {
+    render(<PatientList />);
+    await waitFor(() => expect(screen.getByText("PAT-101")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("PAT-101"));
+    expect(screen.getByText("Triage Patient")).toBeInTheDocument();
+    // Header combines age/sex/complaint from the live sim record (no chart record exists for PAT-101).
+    expect(screen.getByText(/34 F · fall/)).toBeInTheDocument();
+    // Vitals come from the sim record too (hr: 88), not fabricated/blank.
+    expect(screen.getByText("88")).toBeInTheDocument();
+  });
+
+  describe("Triage Patient for a chart-only patient (Fix 2)", () => {
+    it("offers Triage Patient in the drawer, and clicking it activates + triages the patient in one flow", async () => {
+      (api.manualArrival as ReturnType<typeof vi.fn>).mockResolvedValue({ patient_id: "CHART-ONLY", status: "ARRIVED" });
+      (api.triageSimulated as ReturnType<typeof vi.fn>).mockResolvedValue({
+        patient_id: "CHART-ONLY",
+        clinical_assessment: { acuity_tier: 4, department_reasoning: "", top_diagnoses: [], red_flags: [] },
+        operational_decision: {
+          clinical_department: "ADMITTED_GEN", operational_department: "ADMITTED_GEN", ai_operational_department: "ADMITTED_GEN",
+          nurse_override: false, override_reason: null, available_beds_in_clinical_dept: 5,
+          operating_mode: "NORMAL", lambda: 1, capacity_warning: false, confirmation_required: false,
+          recommendation_summary: "General ward appropriate.",
+        },
+        patient: { patient_id: "CHART-ONLY", age: 40, sex: "F", chief_complaint: "headache", vitals: {}, acuity: 4, status: "TRIAGED" },
+      });
+
+      render(<PatientList />);
+      await waitFor(() => expect(screen.getByText("CHART-ONLY")).toBeInTheDocument());
+      fireEvent.click(screen.getByText("CHART-ONLY"));
+
+      const triageBtn = screen.getByText("Triage Patient");
+      fireEvent.click(triageBtn);
+
+      // manualArrival brings the chart-only patient into the live queue using its
+      // real chart data — no vitals re-entry, no fabricated fields.
+      await waitFor(() => expect(api.manualArrival).toHaveBeenCalledWith({
+        patient_id: "CHART-ONLY", chief_complaint: "headache", age: 40, sex: "F", acuity: 4, hospital_id: "default",
+      }));
+      // Then triaged exactly like any other queue patient — same endpoint, same result UI.
+      await waitFor(() => expect(api.triageSimulated).toHaveBeenCalledWith("CHART-ONLY", "default"));
+      await waitFor(() => expect(screen.getByText("General ward appropriate.")).toBeInTheDocument());
+    });
   });
 });

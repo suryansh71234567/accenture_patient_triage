@@ -12,6 +12,7 @@ vi.mock("../api/client", () => ({
     reorderQueue: vi.fn(),
     triageSimulated: vi.fn(),
     overrideDepartment: vi.fn(),
+    step: vi.fn(),
   },
 }));
 vi.mock("../state/SessionContext", () => ({
@@ -59,5 +60,22 @@ describe("LiveHospital", () => {
     await waitFor(() => expect(screen.getByText("PAT-1")).toBeInTheDocument());
     fireEvent.click(screen.getAllByTitle("Move later in queue")[0]);
     await waitFor(() => expect(api.reorderQueue).toHaveBeenCalledWith("PAT-1", 1, "", "default"));
+  });
+
+  // Phase 5: time-stepping folded in from the retired standalone Simulation
+  // screen — same api.step handler, now reachable from Live Hospital.
+  it("Step +5 min and Step +15 min call the existing api.step handler", async () => {
+    (api.step as ReturnType<typeof vi.fn>).mockResolvedValue({});
+    render(<LiveHospital />);
+    await waitFor(() => expect(screen.getByText("PAT-1")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Step +5 min"));
+    await waitFor(() => expect(api.step).toHaveBeenCalledWith(5, true, "default"));
+    fireEvent.click(screen.getByText("Step +15 min"));
+    await waitFor(() => expect(api.step).toHaveBeenCalledWith(15, true, "default"));
+  });
+
+  it("shows the sim clock alongside load ratio and operating mode", async () => {
+    render(<LiveHospital />);
+    await waitFor(() => expect(screen.getByText("10:00")).toBeInTheDocument());
   });
 });

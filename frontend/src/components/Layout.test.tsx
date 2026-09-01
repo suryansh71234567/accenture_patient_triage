@@ -26,7 +26,7 @@ vi.mock("../state/SessionContext", () => ({
 }));
 
 describe("Layout", () => {
-  it("renders all 7 nav items and the assistant panel by default", () => {
+  it("renders the 4 primary nav items and the assistant panel by default", () => {
     render(
       <MemoryRouter initialEntries={["/"]}>
         <Routes>
@@ -36,8 +36,13 @@ describe("Layout", () => {
         </Routes>
       </MemoryRouter>
     );
-    for (const label of ["Overview", "Live Operations", "Hospital Network", "Patients", "Clinical Intelligence", "Simulation", "System Architecture"]) {
+    for (const label of ["Overview", "Hospital Network", "Live Operations", "Patients"]) {
       expect(screen.getByText(label)).toBeInTheDocument();
+    }
+    // Phase 5: Simulation / System Architecture / Clinical Intelligence are
+    // no longer in primary nav (still reachable at their existing routes).
+    for (const label of ["Clinical Intelligence", "Simulation", "System Architecture"]) {
+      expect(screen.queryByText(label)).not.toBeInTheDocument();
     }
     expect(screen.getByText("Dashboard content")).toBeInTheDocument();
     expect(screen.getByText("TriageGuard Assistant")).toBeInTheDocument();

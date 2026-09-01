@@ -28,6 +28,7 @@ Run with:
 from __future__ import annotations
 
 import logging
+import threading
 import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -77,6 +78,17 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 RUNTIME = AgentRuntime(auto_register=True)
 SESSIONS: Dict[str, AgentState] = {}
+
+# FastAPI's sync `def` endpoints run on a threadpool, so two manual-arrival
+# requests for the same patient_id (double-click, two tabs, a retried
+# request) can genuinely execute concurrently. manual_arrival()'s own
+# "reject if already active" check is check-then-act, not atomic, so without
+# this lock two concurrent requests can both pass the check before either
+# has inserted into the waiting queue, producing two SimulatedPatient
+# objects for one id — corrupting every id-keyed lookup thereafter. One
+# process-wide lock is enough: this endpoint is called rarely (one new
+# registration at a time), never a hot path.
+_MANUAL_ARRIVAL_LOCK = threading.Lock()
 
 
 def _get_session(session_id: str) -> AgentState:
@@ -564,118 +576,124 @@ def manual_arrival(req: ManualArrivalRequest) -> Dict[str, Any]:
 
     sim = get_simulator(req.hospital_id)
 
-    # ── 0. Reject id collisions with an already-ACTIVE patient ─────────────
-    existing = sim.patient_flow.get_patient(req.patient_id)
-    if existing is not None:
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                f"Patient {req.patient_id!r} is already active in this hospital "
-                f"(status={existing.status.value}). This may be one of the "
-                "hospital's demo patients — pick a different id, or work with "
-                "the existing patient (triage/admit/override) instead of "
-                "re-registering it."
-            ),
-        )
-
-    # ── 1. Look up stored patient record ───────────────────────────────────
-    stored = get_patient_record(req.patient_id)
-    has_history = stored is not None
-
-    # ── 2. Resolve demographics (stored record wins if it exists) ──────────
-    age = stored.get("age", req.age) if stored else req.age
-    sex = stored.get("sex", req.sex) if stored else req.sex
-
-    # Build history_text from stored record fields
-    history_parts = []
-    if stored:
-        history_flags = {
-            "cardiovascular_history": "cardiovascular disease",
-            "respiratory_history": "respiratory disease",
-            "renal_history": "chronic kidney disease",
-            "diabetes_history": "diabetes mellitus",
-            "neurological_history": "neurological condition",
-            "malignancy_history": "malignancy",
-        }
-        for flag, label in history_flags.items():
-            if stored.get(flag, 0):
-                history_parts.append(label)
-        prev_ed = stored.get("previous_ed_visits", 0)
-        prev_hosp = stored.get("previous_hospital_admissions", 0)
-        prev_icu = stored.get("previous_icu_admissions", 0)
-        if prev_ed:
-            history_parts.append(f"{prev_ed} prior ED visit(s)")
-        if prev_hosp:
-            history_parts.append(f"{prev_hosp} prior hospital admission(s)")
-        if prev_icu:
-            history_parts.append(f"{prev_icu} prior ICU admission(s)")
-
-    history_text = "Prior history: " + ", ".join(history_parts) if history_parts else ""
-
-    # ── 3. Resolve vitals (nurse input wins; stored as fallback) ───────────
-    def _vital(nurse_val, stored_key):
-        if nurse_val is not None:
-            return float(nurse_val)
-        if stored:
-            v = stored.get(stored_key)
-            if v is not None:
-                return float(v)
-        return None
-
-    vitals = {
-        "hr":   _vital(req.hr,          "heartrate"),
-        "rr":   _vital(req.rr,          "resprate"),
-        "spo2": _vital(req.spo2,        "o2sat"),
-        "sbp":  _vital(req.sbp,         "sbp"),
-        "dbp":  _vital(req.dbp,         "dbp"),
-        "temp": _vital(req.temperature, "temperature"),
-        "pain": req.pain if req.pain is not None else (stored.get("pain") if stored else 0),
-    }
-
-    # ── 3.5 Validate temperature is a physiologically plausible °C reading ─
-    # Nurse-entered temperature is Celsius everywhere else in the app (the
-    # UI, update_patient_vitals, patient_tools' file-based validation) — a
-    # value entered in the wrong unit must be rejected here too, not
-    # silently accepted and fed into the live clinical assessment. Bounds
-    # mirror HospitalSimulator._VITALS_RANGES["temp"] exactly.
-    if vitals["temp"] is not None:
-        temp_lo, temp_hi = sim._VITALS_RANGES["temp"]
-        if not (temp_lo <= vitals["temp"] <= temp_hi):
+    # The collision check (0) and the enqueue (4) must be atomic — see
+    # _MANUAL_ARRIVAL_LOCK's comment. Everything in between is pure/read-only
+    # computation from immutable stored records and is safe to run under the
+    # same lock; this endpoint is never a hot path, so holding it for the
+    # whole sequence costs nothing in practice.
+    with _MANUAL_ARRIVAL_LOCK:
+        # ── 0. Reject id collisions with an already-ACTIVE patient ─────────
+        existing = sim.patient_flow.get_patient(req.patient_id)
+        if existing is not None:
             raise HTTPException(
-                status_code=400,
+                status_code=409,
                 detail=(
-                    f"Vital 'temp' value {vitals['temp']} is outside the valid "
-                    f"range [{temp_lo}, {temp_hi}] (expected degrees Celsius)."
+                    f"Patient {req.patient_id!r} is already active in this hospital "
+                    f"(status={existing.status.value}). This may be one of the "
+                    "hospital's demo patients — pick a different id, or work with "
+                    "the existing patient (triage/admit/override) instead of "
+                    "re-registering it."
                 ),
             )
 
-    # ── 4. Build and enqueue SimulatedPatient ──────────────────────────────
-    patient = SimulatedPatient(
-        patient_id=req.patient_id,
-        age=age,
-        sex=sex,
-        chief_complaint=req.chief_complaint,
-        vitals={k: v for k, v in vitals.items() if v is not None},
-        acuity=req.acuity,
-        arrival_time_min=sim.events.sim_time_minutes,
-        expected_los_min=60,
-        status=PatientStatus.ARRIVED,
-        metadata={
-            "history_text": history_text,
-            "has_history": has_history,
-            "previous_ed_visits": stored.get("previous_ed_visits", 0) if stored else 0,
-            "previous_hospital_admissions": stored.get("previous_hospital_admissions", 0) if stored else 0,
-            "previous_icu_admissions": stored.get("previous_icu_admissions", 0) if stored else 0,
-            "cardiovascular_history": stored.get("cardiovascular_history", 0) if stored else 0,
-            "respiratory_history": stored.get("respiratory_history", 0) if stored else 0,
-            "renal_history": stored.get("renal_history", 0) if stored else 0,
-            "diabetes_history": stored.get("diabetes_history", 0) if stored else 0,
-            "neurological_history": stored.get("neurological_history", 0) if stored else 0,
-            "malignancy_history": stored.get("malignancy_history", 0) if stored else 0,
-        },
-    )
+        # ── 1. Look up stored patient record ────────────────────────────────
+        stored = get_patient_record(req.patient_id)
+        has_history = stored is not None
 
-    sim.trigger_arrival(custom_patient=patient)
+        # ── 2. Resolve demographics (stored record wins if it exists) ──────
+        age = stored.get("age", req.age) if stored else req.age
+        sex = stored.get("sex", req.sex) if stored else req.sex
+
+        # Build history_text from stored record fields
+        history_parts = []
+        if stored:
+            history_flags = {
+                "cardiovascular_history": "cardiovascular disease",
+                "respiratory_history": "respiratory disease",
+                "renal_history": "chronic kidney disease",
+                "diabetes_history": "diabetes mellitus",
+                "neurological_history": "neurological condition",
+                "malignancy_history": "malignancy",
+            }
+            for flag, label in history_flags.items():
+                if stored.get(flag, 0):
+                    history_parts.append(label)
+            prev_ed = stored.get("previous_ed_visits", 0)
+            prev_hosp = stored.get("previous_hospital_admissions", 0)
+            prev_icu = stored.get("previous_icu_admissions", 0)
+            if prev_ed:
+                history_parts.append(f"{prev_ed} prior ED visit(s)")
+            if prev_hosp:
+                history_parts.append(f"{prev_hosp} prior hospital admission(s)")
+            if prev_icu:
+                history_parts.append(f"{prev_icu} prior ICU admission(s)")
+
+        history_text = "Prior history: " + ", ".join(history_parts) if history_parts else ""
+
+        # ── 3. Resolve vitals (nurse input wins; stored as fallback) ───────
+        def _vital(nurse_val, stored_key):
+            if nurse_val is not None:
+                return float(nurse_val)
+            if stored:
+                v = stored.get(stored_key)
+                if v is not None:
+                    return float(v)
+            return None
+
+        vitals = {
+            "hr":   _vital(req.hr,          "heartrate"),
+            "rr":   _vital(req.rr,          "resprate"),
+            "spo2": _vital(req.spo2,        "o2sat"),
+            "sbp":  _vital(req.sbp,         "sbp"),
+            "dbp":  _vital(req.dbp,         "dbp"),
+            "temp": _vital(req.temperature, "temperature"),
+            "pain": req.pain if req.pain is not None else (stored.get("pain") if stored else 0),
+        }
+
+        # ── 3.5 Validate temperature is a physiologically plausible °C reading ─
+        # Nurse-entered temperature is Celsius everywhere else in the app (the
+        # UI, update_patient_vitals, patient_tools' file-based validation) — a
+        # value entered in the wrong unit must be rejected here too, not
+        # silently accepted and fed into the live clinical assessment. Bounds
+        # mirror HospitalSimulator._VITALS_RANGES["temp"] exactly.
+        if vitals["temp"] is not None:
+            temp_lo, temp_hi = sim._VITALS_RANGES["temp"]
+            if not (temp_lo <= vitals["temp"] <= temp_hi):
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"Vital 'temp' value {vitals['temp']} is outside the valid "
+                        f"range [{temp_lo}, {temp_hi}] (expected degrees Celsius)."
+                    ),
+                )
+
+        # ── 4. Build and enqueue SimulatedPatient ──────────────────────────
+        patient = SimulatedPatient(
+            patient_id=req.patient_id,
+            age=age,
+            sex=sex,
+            chief_complaint=req.chief_complaint,
+            vitals={k: v for k, v in vitals.items() if v is not None},
+            acuity=req.acuity,
+            arrival_time_min=sim.events.sim_time_minutes,
+            expected_los_min=60,
+            status=PatientStatus.ARRIVED,
+            metadata={
+                "history_text": history_text,
+                "has_history": has_history,
+                "previous_ed_visits": stored.get("previous_ed_visits", 0) if stored else 0,
+                "previous_hospital_admissions": stored.get("previous_hospital_admissions", 0) if stored else 0,
+                "previous_icu_admissions": stored.get("previous_icu_admissions", 0) if stored else 0,
+                "cardiovascular_history": stored.get("cardiovascular_history", 0) if stored else 0,
+                "respiratory_history": stored.get("respiratory_history", 0) if stored else 0,
+                "renal_history": stored.get("renal_history", 0) if stored else 0,
+                "diabetes_history": stored.get("diabetes_history", 0) if stored else 0,
+                "neurological_history": stored.get("neurological_history", 0) if stored else 0,
+                "malignancy_history": stored.get("malignancy_history", 0) if stored else 0,
+            },
+        )
+
+        sim.trigger_arrival(custom_patient=patient)
 
     result = patient.to_dict()
     result["has_history"] = has_history

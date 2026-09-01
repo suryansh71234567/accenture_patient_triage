@@ -91,7 +91,12 @@ export function LiveHospital() {
       {/* ── Header ──────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
         <h1 className="text-[14px] font-bold text-[var(--color-ink)]">Live Hospital — {hospitalName}</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          {/* Time-stepping folded in from the former standalone Simulation
+              screen (Phase 5) — same api.step handler, no new backend call. */}
+          <Button size="sm" variant="secondary" disabled={busy} onClick={() => run(() => api.step(5, true, hospitalId))}>Step +5 min</Button>
+          <Button size="sm" variant="secondary" disabled={busy} onClick={() => run(() => api.step(15, true, hospitalId))}>Step +15 min</Button>
+          <div className="mx-1 h-5 w-px bg-[var(--color-border)]" />
           <Button size="sm" disabled={busy} onClick={() => setShowIntake(true)}>+ Register Patient</Button>
           <span className="text-[10.5px] text-[var(--color-ink-faint)]">or</span>
           <Button size="sm" variant="secondary" disabled={busy} onClick={() => run(() => api.triggerArrival(undefined, hospitalId))}>Random Arrival</Button>
@@ -118,7 +123,8 @@ export function LiveHospital() {
         ))}
         <span className="flex-1" />
         <span className="whitespace-nowrap text-[10.5px] text-[var(--color-ink-faint)]">
-          Load ratio <b className="font-mono text-[var(--color-ink)]">{dash.load.lambda.toFixed(2)}×</b> —{" "}
+          Sim time <b className="font-mono text-[var(--color-ink)]">{dash.time}</b> · Load ratio{" "}
+          <b className="font-mono text-[var(--color-ink)]">{dash.load.lambda.toFixed(2)}×</b> —{" "}
           <span className="font-bold" style={{ color: modeStyle.color }}>{formatOperatingMode(dash.load.operating_mode)}</span>
         </span>
       </div>

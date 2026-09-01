@@ -7,6 +7,7 @@ vi.mock("../api/client", () => ({
   api: {
     triageSimulated: vi.fn(),
     overrideDepartment: vi.fn(),
+    manualArrival: vi.fn(),
   },
 }));
 
@@ -110,5 +111,62 @@ describe("TriageModal", () => {
     // A direct override (not routed through proposeAction) must still bump
     // mutationTick, or other pages' pollers won't learn the override happened.
     expect(bumpMutationTick).toHaveBeenCalled();
+  });
+
+  describe("activation (chart-only patient, Fix 2)", () => {
+    it("auto-runs manualArrival then triageSimulated on mount — no Run Assessment click needed", async () => {
+      (api.manualArrival as ReturnType<typeof vi.fn>).mockResolvedValue({ patient_id: "52", status: "ARRIVED" });
+      (api.triageSimulated as ReturnType<typeof vi.fn>).mockResolvedValue(triageResult);
+      render(
+        <TriageModal
+          patientId="52" age={62} sex="M" chiefComplaint="chest pain" vitals={{ hr: 130 }}
+          hospitalId="h1" departmentOptions={["ICU"]}
+          activation={{ chiefComplaint: "chest pain", age: 62, sex: "M", acuity: 2 }}
+          onClose={vi.fn()} onDone={vi.fn()}
+        />
+      );
+      // No click on "Run AI Clinical Assessment" — the activation path fires itself.
+      await waitFor(() => expect(api.manualArrival).toHaveBeenCalledWith({
+        patient_id: "52", chief_complaint: "chest pain", age: 62, sex: "M", acuity: 2, hospital_id: "h1",
+      }));
+      await waitFor(() => expect(api.triageSimulated).toHaveBeenCalledWith("52", "h1"));
+      await waitFor(() => expect(screen.getByText("ICU-level risk, beds available.")).toBeInTheDocument());
+      // manualArrival must resolve before triageSimulated is called, not race it.
+      const arrivalOrder = (api.manualArrival as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0];
+      const triageOrder = (api.triageSimulated as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0];
+      expect(arrivalOrder).toBeLessThan(triageOrder);
+    });
+
+    it("recovers from an 'already active' manualArrival race (double-click) and still triages", async () => {
+      (api.manualArrival as ReturnType<typeof vi.fn>).mockRejectedValue(
+        new Error("409 Patient '52' is already active in this hospital (status=ARRIVED).")
+      );
+      (api.triageSimulated as ReturnType<typeof vi.fn>).mockResolvedValue(triageResult);
+      render(
+        <TriageModal
+          patientId="52" age={62} sex="M" chiefComplaint="chest pain" vitals={{}}
+          hospitalId="h1" departmentOptions={["ICU"]}
+          activation={{ chiefComplaint: "chest pain", age: 62, sex: "M", acuity: 2 }}
+          onClose={vi.fn()} onDone={vi.fn()}
+        />
+      );
+      // Falls through to triage instead of surfacing the collision as an error.
+      await waitFor(() => expect(api.triageSimulated).toHaveBeenCalledWith("52", "h1"));
+      expect(screen.queryByText(/already active/i)).not.toBeInTheDocument();
+    });
+
+    it("surfaces a real (non-collision) manualArrival error and does not call triageSimulated", async () => {
+      (api.manualArrival as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("400 Vital 'temp' out of range."));
+      render(
+        <TriageModal
+          patientId="52" age={62} sex="M" chiefComplaint="chest pain" vitals={{}}
+          hospitalId="h1" departmentOptions={["ICU"]}
+          activation={{ chiefComplaint: "chest pain", age: 62, sex: "M", acuity: 2 }}
+          onClose={vi.fn()} onDone={vi.fn()}
+        />
+      );
+      await waitFor(() => expect(screen.getByText(/out of range/)).toBeInTheDocument());
+      expect(api.triageSimulated).not.toHaveBeenCalled();
+    });
   });
 });

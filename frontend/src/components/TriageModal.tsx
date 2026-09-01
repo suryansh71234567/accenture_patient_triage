@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { useModalA11y } from "../hooks/useModalA11y";
 import { useSession } from "../state/SessionContext";
@@ -23,6 +23,7 @@ export function TriageModal({
   vitals,
   hospitalId,
   departmentOptions,
+  activation,
   onClose,
   onDone,
 }: {
@@ -33,6 +34,17 @@ export function TriageModal({
   vitals: SimVitals;
   hospitalId: string;
   departmentOptions: string[];
+  /**
+   * Present only for a chart-only patient with no live simulation record yet
+   * (e.g. opened via the Patients screen drawer or PatientWorkspace, not an
+   * already-ARRIVED queue patient). When set, runAssessment() first calls
+   * the real manualArrival() to bring this patient into the live queue
+   * (reusing the chart's own vitals server-side — see manual_arrival()'s
+   * stored-record fallback), then triages exactly as normal — and fires
+   * automatically on mount so the outer "Triage Patient" click is the only
+   * click the nurse needs.
+   */
+  activation?: { chiefComplaint: string; age: number; sex: string; acuity: number | null };
   onClose: () => void;
   onDone: () => void;
 }) {
@@ -49,6 +61,26 @@ export function TriageModal({
     setSubmitting(true);
     setError(null);
     try {
+      if (activation) {
+        try {
+          await api.manualArrival({
+            patient_id: patientId,
+            chief_complaint: activation.chiefComplaint,
+            age: activation.age,
+            sex: activation.sex,
+            acuity: activation.acuity ?? 3,
+            hospital_id: hospitalId,
+          });
+        } catch (e) {
+          // A patient already active in this hospital's simulation (e.g. a
+          // double-click that slipped past the disabled button, or a
+          // concurrent registration from elsewhere) is not a real failure
+          // here — the patient already exists in queue either way, so fall
+          // through to triage. Any other error is real and must surface.
+          const msg = e instanceof Error ? e.message : String(e);
+          if (!/already active/i.test(msg)) throw e;
+        }
+      }
       const r = await api.triageSimulated(patientId, hospitalId);
       setResult(r);
       setOverrideDept(r.operational_decision.operational_department);
@@ -58,6 +90,21 @@ export function TriageModal({
       setSubmitting(false);
     }
   };
+
+  // Guarded by a ref (not just the empty dep array) because React StrictMode
+  // intentionally double-invokes effects in development — without this,
+  // activation would fire manualArrival() + triageSimulated() twice per
+  // mount. The backend's own collision lock now makes a genuine duplicate
+  // patient impossible either way (see _MANUAL_ARRIVAL_LOCK), but there's no
+  // reason to ever send the duplicate request in the first place.
+  const activationStartedRef = useRef(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (activation && !activationStartedRef.current) {
+      activationStartedRef.current = true;
+      runAssessment();
+    }
+  }, []);
 
   const confirmOverride = async () => {
     setSubmitting(true);

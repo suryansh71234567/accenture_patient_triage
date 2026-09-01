@@ -8,14 +8,17 @@ import { PendingActionModal } from "./PendingActionModal";
 import { formatOperatingMode } from "./ui";
 import { useSession } from "../state/SessionContext";
 
+// Primary nav is scoped to the four screens that carry real demo/nurse
+// value (Phase 5 product-surface cleanup). Simulation, System Architecture,
+// and standalone Clinical Intelligence remain fully functional at their
+// existing routes (see App.tsx) — only their top-nav entry point is gone.
+// Simulation's unique capability (time-stepping) moved into Live Hospital;
+// Clinical Intelligence's content already lives in the patient drawer/modals.
 const NAV = [
   { to: "/", label: "Overview" },
   { to: "/network", label: "Hospital Network" },
   { to: "/live", label: "Live Operations" },
   { to: "/patients", label: "Patients" },
-  { to: "/intelligence", label: "Clinical Intelligence" },
-  { to: "/simulation", label: "Simulation" },
-  { to: "/architecture", label: "System Architecture" },
 ];
 
 export function Layout() {
