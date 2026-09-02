@@ -51,9 +51,15 @@ class OpenRouterError(RuntimeError):
     """Raised when the OpenRouter call fails or returns an unusable response."""
 
 
+# Start from this key index on first boot (0-based).
+# Keys before this index are intentionally skipped at startup because they
+# hit the free-tier rate limit quickly; the cycle still wraps back to them.
+INITIAL_KEY_INDEX = 2
+
 _key_lock = threading.Lock()
 _key_cycle: Optional["itertools.cycle[str]"] = None
 _key_cycle_source: Optional[str] = None
+_all_keys: List[str] = []  # kept so callers can iterate the full pool
 
 
 def _parse_api_keys(raw: str) -> List[str]:
@@ -72,15 +78,29 @@ def _parse_api_keys(raw: str) -> List[str]:
     return [raw]
 
 
+def _build_cycle(keys: List[str]) -> "itertools.cycle[str]":
+    """Return a cycle that starts at INITIAL_KEY_INDEX (wraps if pool is smaller)."""
+    if len(keys) <= 1:
+        return itertools.cycle(keys)
+    start = INITIAL_KEY_INDEX % len(keys)
+    # Rotate the list so the desired key comes first, then cycle.
+    rotated = keys[start:] + keys[:start]
+    logger.info(
+        "Key pool has %d key(s); starting rotation at index %d (key ending …%s).",
+        len(keys), start, rotated[0][-6:],
+    )
+    return itertools.cycle(rotated)
+
+
 def get_api_key() -> Optional[str]:
     """
     Read the OpenRouter API key from the environment. Never hardcode it.
 
     OPENROUTER_API_KEY may hold several keys as a JSON list. When it does,
-    this rotates round-robin — a different key on every call — so a single
-    free-tier key's rate limit isn't hit on every request.
+    this rotates round-robin — a different key on every call — starting from
+    INITIAL_KEY_INDEX so the most-rate-limited keys are skipped at startup.
     """
-    global _key_cycle, _key_cycle_source
+    global _key_cycle, _key_cycle_source, _all_keys
     raw = os.environ.get("OPENROUTER_API_KEY", "")
     if not raw:
         return None
@@ -90,7 +110,8 @@ def get_api_key() -> Optional[str]:
             keys = _parse_api_keys(raw)
             if not keys:
                 return None
-            _key_cycle = itertools.cycle(keys)
+            _all_keys = keys
+            _key_cycle = _build_cycle(keys)
             _key_cycle_source = raw
         return next(_key_cycle)
 
@@ -172,23 +193,71 @@ def call_chat_with_tools(
         "X-Title": "TriageGuard-Agent",
     }
 
-    logger.info("Calling OpenRouter model=%s with %d tool(s).", payload["model"], len(tools))
-    try:
-        with httpx.Client(timeout=timeout) as client:
-            response = client.post(OPENROUTER_URL, headers=headers, json=payload)
+    # ------------------------------------------------------------------ #
+    # Retry loop: try every key in the pool before giving up.             #
+    # A 429 (rate-limit) or a response without 'choices' both trigger a   #
+    # rotation to the next key automatically.                             #
+    # ------------------------------------------------------------------ #
+    with _key_lock:
+        total_keys = len(_all_keys) if _all_keys else 1
+
+    last_error: Optional[Exception] = None
+    for attempt in range(total_keys):
+        current_key = key if attempt == 0 else get_api_key()
+        attempt_headers = dict(headers)
+        attempt_headers["Authorization"] = f"Bearer {current_key}"
+
+        logger.info(
+            "Calling OpenRouter model=%s with %d tool(s) [attempt %d/%d, key …%s].",
+            payload["model"], len(tools), attempt + 1, total_keys, current_key[-6:],
+        )
+
+        try:
+            with httpx.Client(timeout=timeout) as client:
+                response = client.post(OPENROUTER_URL, headers=attempt_headers, json=payload)
+        except httpx.HTTPError as exc:
+            last_error = OpenRouterError(f"OpenRouter request failed: {exc}")
+            logger.warning("Network error on attempt %d: %s — trying next key.", attempt + 1, exc)
+            continue
+
+        if response.status_code == 429:
+            logger.warning(
+                "Rate-limited (429) on attempt %d (key …%s) — rotating to next key.",
+                attempt + 1, current_key[-6:],
+            )
+            last_error = OpenRouterError(f"Rate-limited on key …{current_key[-6:]}")
+            continue
+
+        try:
             response.raise_for_status()
-    except httpx.HTTPError as exc:
-        raise OpenRouterError(f"OpenRouter request failed: {exc}") from exc
+        except httpx.HTTPStatusError as exc:
+            last_error = OpenRouterError(f"OpenRouter HTTP {response.status_code}: {exc}")
+            logger.warning("HTTP error %d on attempt %d — trying next key.", response.status_code, attempt + 1)
+            continue
 
-    try:
-        data = response.json()
-        message = data["choices"][0]["message"]
-    except (KeyError, IndexError, ValueError) as exc:
-        raise OpenRouterError(
-            f"OpenRouter returned an unexpected response shape: {exc}"
-        ) from exc
+        try:
+            data = response.json()
+            if "error" in data:
+                err_msg = data["error"].get("message", str(data["error"]))
+                logger.warning(
+                    "OpenRouter API error on attempt %d (key …%s): %s — trying next key.",
+                    attempt + 1, current_key[-6:], err_msg,
+                )
+                last_error = OpenRouterError(f"OpenRouter API error: {err_msg}")
+                continue
+            message = data["choices"][0]["message"]
+            return message  # success
+        except (KeyError, IndexError, ValueError) as exc:
+            last_error = OpenRouterError(
+                f"OpenRouter returned an unexpected response shape: {exc}"
+            )
+            logger.warning(
+                "Unexpected response shape on attempt %d (key …%s): %s — trying next key.",
+                attempt + 1, current_key[-6:], exc,
+            )
+            continue
 
-    return message
+    raise last_error or OpenRouterError("All API keys exhausted without a successful response.")
 
 
 def tool_result_message(tool_call_id: str, tool_name: str, result_dict: Dict[str, Any]) -> Dict[str, Any]:
