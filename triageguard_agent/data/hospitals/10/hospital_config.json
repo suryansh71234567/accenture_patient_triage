@@ -1,0 +1,29 @@
+{
+  "departments": {
+    "ICU": {
+      "capacity": 7,
+      "occupied": 4,
+      "status": "OPEN"
+    },
+    "CICU": {
+      "capacity": 6,
+      "occupied": 2,
+      "status": "OPEN"
+    },
+    "ADMITTED_GEN": {
+      "capacity": 40,
+      "occupied": 20,
+      "status": "OPEN"
+    },
+    "ED_OBS": {
+      "capacity": 15,
+      "occupied": 5,
+      "status": "OPEN"
+    },
+    "DISCHARGE": {
+      "capacity": 999,
+      "occupied": 0,
+      "status": "OPEN"
+    }
+  }
+}

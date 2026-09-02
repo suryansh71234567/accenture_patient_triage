@@ -1,0 +1,1952 @@
+{
+  "results": [
+    {
+      "rank": 1,
+      "patient_id": "EVAL-001",
+      "age": 62,
+      "sex": "M",
+      "acuity": 1,
+      "chief_complaint": "Sudden crushing chest pain, radiation to left arm, diaphoresis",
+      "has_history": true,
+      "department": "CICU",
+      "expected_dept": "CICU",
+      "admission_risk": 0.755,
+      "icu_risk": 0.676,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 65%, RAG 80%) \u2014 balanced blend",
+      "red_flags": [
+        "Low SpO2 (88%)",
+        "Tachycardia (118 bpm)",
+        "Low blood pressure (78/50 mmHg)"
+      ],
+      "top_diagnoses": [
+        "Acute Coronary Syndrome (ACS)",
+        "Cardiogenic Shock"
+      ],
+      "urgency": "high",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 100,
+      "score_reasons": [
+        "\u2705 Correct dept (CICU)",
+        "\u2705 Risk scores match high acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 3 red flags identified",
+        "\u2705 2 differential diagnoses",
+        "\u2705 Urgency label correct for severity"
+      ],
+      "elapsed_s": 56.3
+    },
+    {
+      "rank": 2,
+      "patient_id": "EVAL-002",
+      "age": 74,
+      "sex": "F",
+      "acuity": 1,
+      "chief_complaint": "Unresponsive, found at home, GCS 5",
+      "has_history": true,
+      "department": "ICU",
+      "expected_dept": "ICU",
+      "admission_risk": 0.756,
+      "icu_risk": 0.675,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 65%, RAG 80%) \u2014 balanced blend",
+      "red_flags": [
+        "Low heart rate",
+        "Low blood pressure",
+        "Low oxygen saturation"
+      ],
+      "top_diagnoses": [
+        "Hypotension",
+        "Hypoxia",
+        "Neurological deterioration"
+      ],
+      "urgency": "high",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 100,
+      "score_reasons": [
+        "\u2705 Correct dept (ICU)",
+        "\u2705 Risk scores match high acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 3 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u2705 Urgency label correct for severity"
+      ],
+      "elapsed_s": 4.7
+    },
+    {
+      "rank": 3,
+      "patient_id": "EVAL-007",
+      "age": 67,
+      "sex": "M",
+      "acuity": 2,
+      "chief_complaint": "New onset AF with rapid ventricular response HR 148, palpitations",
+      "has_history": true,
+      "department": "CICU",
+      "expected_dept": "CICU",
+      "admission_risk": 0.756,
+      "icu_risk": 0.676,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 65%, RAG 80%) \u2014 balanced blend",
+      "red_flags": [
+        "Elevated heart rate",
+        "Palpitations",
+        "Comorbidities (DM, HTN)"
+      ],
+      "top_diagnoses": [
+        "Atrial Fibrillation",
+        "Cardiac Stress",
+        "Cardiac Complications"
+      ],
+      "urgency": "high",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 100,
+      "score_reasons": [
+        "\u2705 Correct dept (CICU)",
+        "\u2705 Risk scores match high acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 3 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u2705 Urgency label correct for severity"
+      ],
+      "elapsed_s": 73.5
+    },
+    {
+      "rank": 4,
+      "patient_id": "EVAL-009",
+      "age": 72,
+      "sex": "M",
+      "acuity": 2,
+      "chief_complaint": "Hypotension and altered consciousness \u2014 BP 90/60, sepsis query",
+      "has_history": true,
+      "department": "ICU",
+      "expected_dept": "ICU",
+      "admission_risk": 0.756,
+      "icu_risk": 0.676,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 65%, RAG 80%) \u2014 balanced blend",
+      "red_flags": [
+        "Low blood pressure (90/60 mmHg)",
+        "Altered consciousness",
+        "Recurrent UTIs and prior sepsis admission"
+      ],
+      "top_diagnoses": [
+        "Sepsis",
+        "Hypotension",
+        "Altered consciousness"
+      ],
+      "urgency": "high",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 100,
+      "score_reasons": [
+        "\u2705 Correct dept (ICU)",
+        "\u2705 Risk scores match high acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 3 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u2705 Urgency label correct for severity"
+      ],
+      "elapsed_s": 7.4
+    },
+    {
+      "rank": 5,
+      "patient_id": "EVAL-010",
+      "age": 34,
+      "sex": "F",
+      "acuity": 2,
+      "chief_complaint": "Status epilepticus \u2014 ongoing generalised tonic-clonic seizure 8 min",
+      "has_history": true,
+      "department": "ICU",
+      "expected_dept": "ICU",
+      "admission_risk": 0.77,
+      "icu_risk": 0.643,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 67%, RAG 60%) \u2014 balanced blend",
+      "red_flags": [
+        "Elevated heart rate",
+        "Slightly elevated temperature"
+      ],
+      "top_diagnoses": [
+        "Status Epilepticus",
+        "Seizure Disorder"
+      ],
+      "urgency": "high",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 100,
+      "score_reasons": [
+        "\u2705 Correct dept (ICU)",
+        "\u2705 Risk scores match high acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 2 red flags identified",
+        "\u2705 2 differential diagnoses",
+        "\u2705 Urgency label correct for severity"
+      ],
+      "elapsed_s": 2.2
+    },
+    {
+      "rank": 6,
+      "patient_id": "EVAL-012",
+      "age": 88,
+      "sex": "M",
+      "acuity": 2,
+      "chief_complaint": "Acute delirium, fever 38.6\u00b0C, new urinary incontinence",
+      "has_history": true,
+      "department": "ICU",
+      "expected_dept": "ICU",
+      "admission_risk": 0.757,
+      "icu_risk": 0.676,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 65%, RAG 80%) \u2014 balanced blend",
+      "red_flags": [
+        "Elevated heart rate",
+        "Mildly elevated temperature",
+        "New urinary incontinence"
+      ],
+      "top_diagnoses": [
+        "UTI",
+        "Sepsis",
+        "Delirium"
+      ],
+      "urgency": "high",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 100,
+      "score_reasons": [
+        "\u2705 Correct dept (ICU)",
+        "\u2705 Risk scores match high acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 3 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u2705 Urgency label correct for severity"
+      ],
+      "elapsed_s": 40.1
+    },
+    {
+      "rank": 7,
+      "patient_id": "EVAL-021",
+      "age": 52,
+      "sex": "F",
+      "acuity": 2,
+      "chief_complaint": "Pulmonary embolism \u2014 acute dyspnoea, pleuritic chest pain, D-dimer elevated",
+      "has_history": true,
+      "department": "ICU",
+      "expected_dept": "ICU",
+      "admission_risk": 0.756,
+      "icu_risk": 0.676,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 65%, RAG 80%) \u2014 balanced blend",
+      "red_flags": [
+        "Elevated heart rate (114 bpm)",
+        "Pain score (6/10)"
+      ],
+      "top_diagnoses": [
+        "Pulmonary Embolism",
+        "Acute Respiratory Distress Syndrome (ARDS)",
+        "Thromboembolic Event"
+      ],
+      "urgency": "high",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 100,
+      "score_reasons": [
+        "\u2705 Correct dept (ICU)",
+        "\u2705 Risk scores match high acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 2 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u2705 Urgency label correct for severity"
+      ],
+      "elapsed_s": 7.0
+    },
+    {
+      "rank": 8,
+      "patient_id": "EVAL-025",
+      "age": 78,
+      "sex": "M",
+      "acuity": 2,
+      "chief_complaint": "Decompensated heart failure \u2014 bilateral leg oedema, orthopnoea, pink frothy sputum",
+      "has_history": true,
+      "department": "CICU",
+      "expected_dept": "CICU",
+      "admission_risk": 0.76,
+      "icu_risk": 0.676,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 67%, RAG 80%) \u2014 balanced blend",
+      "red_flags": [
+        "Tachycardia (106 bpm)",
+        "Hypoxemia (SpO2 90%)",
+        "Hypertension (168/96 mmHg)"
+      ],
+      "top_diagnoses": [
+        "Acute decompensated heart failure",
+        "Chronic kidney disease"
+      ],
+      "urgency": "high",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 100,
+      "score_reasons": [
+        "\u2705 Correct dept (CICU)",
+        "\u2705 Risk scores match high acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 3 red flags identified",
+        "\u2705 2 differential diagnoses",
+        "\u2705 Urgency label correct for severity"
+      ],
+      "elapsed_s": 5.1
+    },
+    {
+      "rank": 9,
+      "patient_id": "EVAL-031",
+      "age": 46,
+      "sex": "F",
+      "acuity": 2,
+      "chief_complaint": "Ectopic pregnancy \u2014 LIF pain, vaginal bleeding, positive pregnancy test",
+      "has_history": true,
+      "department": "ICU",
+      "expected_dept": "ICU",
+      "admission_risk": 0.756,
+      "icu_risk": 0.667,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 65%, RAG 80%) \u2014 balanced blend",
+      "red_flags": [
+        "High heart rate",
+        "Positive pregnancy test",
+        "Prior PID"
+      ],
+      "top_diagnoses": [
+        "Ectopic pregnancy",
+        "Ruptured ectopic pregnancy"
+      ],
+      "urgency": "high",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 100,
+      "score_reasons": [
+        "\u2705 Correct dept (ICU)",
+        "\u2705 Risk scores match high acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 3 red flags identified",
+        "\u2705 2 differential diagnoses",
+        "\u2705 Urgency label correct for severity"
+      ],
+      "elapsed_s": 5.2
+    },
+    {
+      "rank": 10,
+      "patient_id": "EVAL-035",
+      "age": 25,
+      "sex": "M",
+      "acuity": 2,
+      "chief_complaint": "Traumatic head injury \u2014 MVC, GCS 13, laceration, confusion",
+      "has_history": true,
+      "department": "ICU",
+      "expected_dept": "ICU",
+      "admission_risk": 0.776,
+      "icu_risk": 0.643,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 69%, RAG 60%) \u2014 balanced blend",
+      "red_flags": [
+        "Elevated heart rate (92 bpm)",
+        "Pain score of 6/10"
+      ],
+      "top_diagnoses": [
+        "Traumatic head injury",
+        "Confusion",
+        "Laceration"
+      ],
+      "urgency": "high",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 100,
+      "score_reasons": [
+        "\u2705 Correct dept (ICU)",
+        "\u2705 Risk scores match high acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 2 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u2705 Urgency label correct for severity"
+      ],
+      "elapsed_s": 65.6
+    },
+    {
+      "rank": 11,
+      "patient_id": "EVAL-041",
+      "age": 54,
+      "sex": "M",
+      "acuity": 1,
+      "chief_complaint": "Acute liver failure \u2014 jaundice, encephalopathy, INR 4.2",
+      "has_history": true,
+      "department": "ICU",
+      "expected_dept": "ICU",
+      "admission_risk": 0.765,
+      "icu_risk": 0.643,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 65%, RAG 60%) \u2014 balanced blend",
+      "red_flags": [
+        "Tachycardia (108 bpm)",
+        "Low blood pressure (96/62 mmHg)",
+        "Elevated INR (4.2)"
+      ],
+      "top_diagnoses": [
+        "Acute liver failure",
+        "Hepatic encephalopathy",
+        "Coagulopathy"
+      ],
+      "urgency": "high",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 100,
+      "score_reasons": [
+        "\u2705 Correct dept (ICU)",
+        "\u2705 Risk scores match high acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 3 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u2705 Urgency label correct for severity"
+      ],
+      "elapsed_s": 7.2
+    },
+    {
+      "rank": 12,
+      "patient_id": "EVAL-045",
+      "age": 85,
+      "sex": "F",
+      "acuity": 2,
+      "chief_complaint": "Aspiration pneumonia \u2014 gurgling breathing, fever, O2 drop after meal",
+      "has_history": true,
+      "department": "ICU",
+      "expected_dept": "ICU",
+      "admission_risk": 0.749,
+      "icu_risk": 0.702,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 65%, RAG 100%) \u2014 balanced blend",
+      "red_flags": [
+        "Low SpO2 (91%)",
+        "High respiratory rate (26 breaths per minute)"
+      ],
+      "top_diagnoses": [
+        "Aspiration pneumonia",
+        "Respiratory failure",
+        "Cardiovascular instability"
+      ],
+      "urgency": "high",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 100,
+      "score_reasons": [
+        "\u2705 Correct dept (ICU)",
+        "\u2705 Risk scores match high acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 2 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u2705 Urgency label correct for severity"
+      ],
+      "elapsed_s": 63.2
+    },
+    {
+      "rank": 13,
+      "patient_id": "EVAL-047",
+      "age": 70,
+      "sex": "F",
+      "acuity": 1,
+      "chief_complaint": "Thyroid storm \u2014 HR 148, hyperthermia 40.2\u00b0C, agitation, AF",
+      "has_history": true,
+      "department": "CICU",
+      "expected_dept": "CICU",
+      "admission_risk": 0.77,
+      "icu_risk": 0.643,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 66%, RAG 60%) \u2014 balanced blend",
+      "red_flags": [
+        "High heart rate",
+        "Hyperthermia",
+        "Atrial fibrillation"
+      ],
+      "top_diagnoses": [
+        "Thyroid storm",
+        "Atrial fibrillation",
+        "Hyperthermia"
+      ],
+      "urgency": "high",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 100,
+      "score_reasons": [
+        "\u2705 Correct dept (CICU)",
+        "\u2705 Risk scores match high acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 3 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u2705 Urgency label correct for severity"
+      ],
+      "elapsed_s": 7.2
+    },
+    {
+      "rank": 14,
+      "patient_id": "EVAL-050",
+      "age": 38,
+      "sex": "M",
+      "acuity": 2,
+      "chief_complaint": "Testicular torsion \u2014 sudden severe scrotal pain, absent cremasteric reflex",
+      "has_history": true,
+      "department": "ICU",
+      "expected_dept": "ICU",
+      "admission_risk": 0.762,
+      "icu_risk": 0.674,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 67%, RAG 80%) \u2014 balanced blend",
+      "red_flags": [
+        "High pain score (10/10)",
+        "Absent cremasteric reflex"
+      ],
+      "top_diagnoses": [
+        "Testicular torsion",
+        "Necrotizing testicular torsion"
+      ],
+      "urgency": "high",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 100,
+      "score_reasons": [
+        "\u2705 Correct dept (ICU)",
+        "\u2705 Risk scores match high acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 2 red flags identified",
+        "\u2705 2 differential diagnoses",
+        "\u2705 Urgency label correct for severity"
+      ],
+      "elapsed_s": 43.0
+    },
+    {
+      "rank": 15,
+      "patient_id": "EVAL-003",
+      "age": 45,
+      "sex": "M",
+      "acuity": 1,
+      "chief_complaint": "Massive haematemesis, BP falling, pallor and diaphoresis",
+      "has_history": true,
+      "department": "CICU",
+      "expected_dept": "ICU",
+      "admission_risk": 0.749,
+      "icu_risk": 0.702,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 65%, RAG 100%) \u2014 balanced blend",
+      "red_flags": [
+        "low blood pressure",
+        "high heart rate",
+        "pallor and diaphoresis"
+      ],
+      "top_diagnoses": [
+        "severe GI bleeding",
+        "hypovolemic shock"
+      ],
+      "urgency": "high",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 90,
+      "score_reasons": [
+        "\u2248 Near-correct (CICU vs ICU)",
+        "\u2705 Risk scores match high acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 3 red flags identified",
+        "\u2705 2 differential diagnoses",
+        "\u2705 Urgency label correct for severity"
+      ],
+      "elapsed_s": 4.9
+    },
+    {
+      "rank": 16,
+      "patient_id": "EVAL-004",
+      "age": 29,
+      "sex": "F",
+      "acuity": 1,
+      "chief_complaint": "Anaphylaxis after insect sting, throat swelling, stridor",
+      "has_history": true,
+      "department": "CICU",
+      "expected_dept": "ICU",
+      "admission_risk": 0.749,
+      "icu_risk": 0.701,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 65%, RAG 100%) \u2014 balanced blend",
+      "red_flags": [
+        "Stridor",
+        "Low blood pressure"
+      ],
+      "top_diagnoses": [
+        "Anaphylaxis",
+        "Airway compromise",
+        "Cardiovascular instability"
+      ],
+      "urgency": "high",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 90,
+      "score_reasons": [
+        "\u2248 Near-correct (CICU vs ICU)",
+        "\u2705 Risk scores match high acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 2 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u2705 Urgency label correct for severity"
+      ],
+      "elapsed_s": 48.6
+    },
+    {
+      "rank": 17,
+      "patient_id": "EVAL-005",
+      "age": 58,
+      "sex": "M",
+      "acuity": 1,
+      "chief_complaint": "Acute aortic dissection \u2014 tearing back pain radiating to abdomen",
+      "has_history": true,
+      "department": "CICU",
+      "expected_dept": "ICU",
+      "admission_risk": 0.758,
+      "icu_risk": 0.699,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 69%, RAG 100%) \u2014 balanced blend",
+      "red_flags": [
+        "High blood pressure (190/110 mmHg)",
+        "High heart rate (108 bpm)",
+        "Suspected Marfan syndrome"
+      ],
+      "top_diagnoses": [
+        "Acute aortic dissection",
+        "Hypertension",
+        "Marfan syndrome"
+      ],
+      "urgency": "high",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 90,
+      "score_reasons": [
+        "\u2248 Near-correct (CICU vs ICU)",
+        "\u2705 Risk scores match high acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 3 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u2705 Urgency label correct for severity"
+      ],
+      "elapsed_s": 53.8
+    },
+    {
+      "rank": 18,
+      "patient_id": "EVAL-006",
+      "age": 81,
+      "sex": "F",
+      "acuity": 2,
+      "chief_complaint": "Acute respiratory failure, RR 32, SpO2 88%, COPD history",
+      "has_history": true,
+      "department": "CICU",
+      "expected_dept": "ICU",
+      "admission_risk": 0.756,
+      "icu_risk": 0.676,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 65%, RAG 80%) \u2014 balanced blend",
+      "red_flags": [
+        "High blood pressure",
+        "Tachycardia",
+        "Low SpO2",
+        "High respiratory rate"
+      ],
+      "top_diagnoses": [
+        "Respiratory failure",
+        "COPD exacerbation",
+        "CHF exacerbation"
+      ],
+      "urgency": "high",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 90,
+      "score_reasons": [
+        "\u2248 Near-correct (CICU vs ICU)",
+        "\u2705 Risk scores match high acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 4 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u2705 Urgency label correct for severity"
+      ],
+      "elapsed_s": 6.5
+    },
+    {
+      "rank": 19,
+      "patient_id": "EVAL-008",
+      "age": 55,
+      "sex": "F",
+      "acuity": 2,
+      "chief_complaint": "Stroke \u2014 right-sided facial droop, arm weakness, slurred speech, onset 1h ago",
+      "has_history": true,
+      "department": "CICU",
+      "expected_dept": "ICU",
+      "admission_risk": 0.788,
+      "icu_risk": 0.643,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 72%, RAG 60%) \u2014 balanced blend",
+      "red_flags": [
+        "Elevated blood pressure",
+        "Past medical history of hypertension and hypercholesterolemia"
+      ],
+      "top_diagnoses": [
+        "Acute ischemic stroke",
+        "Hypertension",
+        "Hypercholesterolemia"
+      ],
+      "urgency": "high",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 90,
+      "score_reasons": [
+        "\u2248 Near-correct (CICU vs ICU)",
+        "\u2705 Risk scores match high acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 2 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u2705 Urgency label correct for severity"
+      ],
+      "elapsed_s": 12.0
+    },
+    {
+      "rank": 20,
+      "patient_id": "EVAL-011",
+      "age": 48,
+      "sex": "M",
+      "acuity": 1,
+      "chief_complaint": "Inferior STEMI \u2014 chest tightening, nausea, ST elevation V2-V6",
+      "has_history": true,
+      "department": "CICU",
+      "expected_dept": "ICU",
+      "admission_risk": 0.755,
+      "icu_risk": 0.667,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 65%, RAG 80%) \u2014 balanced blend",
+      "red_flags": [
+        "Elevated heart rate",
+        "High pain score",
+        "Heavy smoking history"
+      ],
+      "top_diagnoses": [
+        "STEMI",
+        "Cardiac instability"
+      ],
+      "urgency": "high",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 90,
+      "score_reasons": [
+        "\u2248 Near-correct (CICU vs ICU)",
+        "\u2705 Risk scores match high acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 3 red flags identified",
+        "\u2705 2 differential diagnoses",
+        "\u2705 Urgency label correct for severity"
+      ],
+      "elapsed_s": 5.3
+    },
+    {
+      "rank": 21,
+      "patient_id": "EVAL-013",
+      "age": 53,
+      "sex": "F",
+      "acuity": 3,
+      "chief_complaint": "Right lower quadrant pain 8/10 with rebound, fever 38.4\u00b0C",
+      "has_history": true,
+      "department": "ADMITTED_GEN",
+      "expected_dept": "ADMITTED_GEN",
+      "admission_risk": 0.645,
+      "icu_risk": 0.331,
+      "branches_agree": false,
+      "confidence_note": "Both branches confident (XGBoost 65%, RAG 60%) \u2014 balanced blend; branches disagree \u2192 conservative admission floor applied",
+      "red_flags": [
+        "Fever",
+        "Pain score 8/10"
+      ],
+      "top_diagnoses": [
+        "Acute abdomen",
+        "Infection",
+        "Surgical emergency"
+      ],
+      "urgency": "moderate",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 90,
+      "score_reasons": [
+        "\u2705 Correct dept (ADMITTED_GEN)",
+        "\u2705 Risk scores match moderate acuity",
+        "\u26a0 Branches disagree (interesting for demo)",
+        "\u2705 2 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u2705 Urgency label correct for moderate"
+      ],
+      "elapsed_s": 5.3
+    },
+    {
+      "rank": 22,
+      "patient_id": "EVAL-017",
+      "age": 60,
+      "sex": "M",
+      "acuity": 3,
+      "chief_complaint": "DVT left leg confirmed on ultrasound \u2014 calf swelling 3 days",
+      "has_history": true,
+      "department": "ADMITTED_GEN",
+      "expected_dept": "ADMITTED_GEN",
+      "admission_risk": 0.625,
+      "icu_risk": 0.346,
+      "branches_agree": false,
+      "confidence_note": "Both branches confident (XGBoost 67%, RAG 80%) \u2014 balanced blend; branches disagree \u2192 conservative admission floor applied",
+      "red_flags": [
+        "Decrease in SpO2",
+        "Significant increase in pain score",
+        "Significant change in blood pressure"
+      ],
+      "top_diagnoses": [
+        "Deep Vein Thrombosis (DVT)",
+        "Colorectal Cancer",
+        "Chemotherapy-induced complications"
+      ],
+      "urgency": "moderate",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 90,
+      "score_reasons": [
+        "\u2705 Correct dept (ADMITTED_GEN)",
+        "\u2705 Risk scores match moderate acuity",
+        "\u26a0 Branches disagree (interesting for demo)",
+        "\u2705 3 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u2705 Urgency label correct for moderate"
+      ],
+      "elapsed_s": 6.5
+    },
+    {
+      "rank": 23,
+      "patient_id": "EVAL-018",
+      "age": 44,
+      "sex": "F",
+      "acuity": 2,
+      "chief_complaint": "Diabetic ketoacidosis \u2014 blood glucose 520, vomiting, Kussmaul breathing",
+      "has_history": true,
+      "department": "CICU",
+      "expected_dept": "ICU",
+      "admission_risk": 0.764,
+      "icu_risk": 0.643,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 65%, RAG 60%) \u2014 balanced blend",
+      "red_flags": [
+        "tachycardia",
+        "tachypnea",
+        "hypotension"
+      ],
+      "top_diagnoses": [
+        "diabetic ketoacidosis",
+        "hyperglycemia",
+        "metabolic decompensation"
+      ],
+      "urgency": "high",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 90,
+      "score_reasons": [
+        "\u2248 Near-correct (CICU vs ICU)",
+        "\u2705 Risk scores match high acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 3 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u2705 Urgency label correct for severity"
+      ],
+      "elapsed_s": 5.9
+    },
+    {
+      "rank": 24,
+      "patient_id": "EVAL-023",
+      "age": 66,
+      "sex": "F",
+      "acuity": 3,
+      "chief_complaint": "Cellulitis right leg \u2014 redness spreading above knee, fever 38.7\u00b0C",
+      "has_history": true,
+      "department": "ADMITTED_GEN",
+      "expected_dept": "ADMITTED_GEN",
+      "admission_risk": 0.667,
+      "icu_risk": 0.346,
+      "branches_agree": false,
+      "confidence_note": "Both branches confident (XGBoost 78%, RAG 80%) \u2014 balanced blend; branches disagree \u2192 conservative admission floor applied",
+      "red_flags": [
+        "Fever",
+        "Pain score",
+        "History of peripheral vascular disease"
+      ],
+      "top_diagnoses": [
+        "Cellulitis",
+        "Infection",
+        "Peripheral vascular disease"
+      ],
+      "urgency": "moderate",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 90,
+      "score_reasons": [
+        "\u2705 Correct dept (ADMITTED_GEN)",
+        "\u2705 Risk scores match moderate acuity",
+        "\u26a0 Branches disagree (interesting for demo)",
+        "\u2705 3 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u2705 Urgency label correct for moderate"
+      ],
+      "elapsed_s": 1.9
+    },
+    {
+      "rank": 25,
+      "patient_id": "EVAL-028",
+      "age": 22,
+      "sex": "F",
+      "acuity": 3,
+      "chief_complaint": "Acute appendicitis \u2014 McBurney point tenderness, Rovsing sign positive",
+      "has_history": true,
+      "department": "ADMITTED_GEN",
+      "expected_dept": "ADMITTED_GEN",
+      "admission_risk": 0.651,
+      "icu_risk": 0.324,
+      "branches_agree": false,
+      "confidence_note": "Both branches confident (XGBoost 66%, RAG 60%) \u2014 balanced blend; branches disagree \u2192 conservative admission floor applied",
+      "red_flags": [
+        "elevated heart rate",
+        "pain score 8/10"
+      ],
+      "top_diagnoses": [
+        "acute appendicitis",
+        "peritonitis",
+        "sepsis"
+      ],
+      "urgency": "moderate",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 90,
+      "score_reasons": [
+        "\u2705 Correct dept (ADMITTED_GEN)",
+        "\u2705 Risk scores match moderate acuity",
+        "\u26a0 Branches disagree (interesting for demo)",
+        "\u2705 2 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u2705 Urgency label correct for moderate"
+      ],
+      "elapsed_s": 6.1
+    },
+    {
+      "rank": 26,
+      "patient_id": "EVAL-034",
+      "age": 37,
+      "sex": "F",
+      "acuity": 2,
+      "chief_complaint": "Pregnancy-induced hypertension \u2014 BP 158/104, proteinuria, headache",
+      "has_history": true,
+      "department": "CICU",
+      "expected_dept": "ICU",
+      "admission_risk": 0.758,
+      "icu_risk": 0.676,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 66%, RAG 80%) \u2014 balanced blend",
+      "red_flags": [
+        "High blood pressure",
+        "Proteinuria",
+        "History of pre-eclampsia"
+      ],
+      "top_diagnoses": [
+        "Pre-eclampsia",
+        "Hypertension",
+        "Pregnancy-induced hypertension"
+      ],
+      "urgency": "high",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 90,
+      "score_reasons": [
+        "\u2248 Near-correct (CICU vs ICU)",
+        "\u2705 Risk scores match high acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 3 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u2705 Urgency label correct for severity"
+      ],
+      "elapsed_s": 5.0
+    },
+    {
+      "rank": 27,
+      "patient_id": "EVAL-042",
+      "age": 65,
+      "sex": "F",
+      "acuity": 2,
+      "chief_complaint": "Hypercalcaemia crisis \u2014 confusion, vomiting, polyuria, Ca 14.8",
+      "has_history": true,
+      "department": "CICU",
+      "expected_dept": "ICU",
+      "admission_risk": 0.749,
+      "icu_risk": 0.702,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 65%, RAG 100%) \u2014 balanced blend",
+      "red_flags": [
+        "Tachycardia (HR 96 bpm)",
+        "Tachypnea (Resp rate 18/min)",
+        "Metastatic lung cancer on checkpoint inhibitor therapy"
+      ],
+      "top_diagnoses": [
+        "Severe hypercalcemia crisis",
+        "Metastatic lung cancer",
+        "Checkpoint inhibitor therapy toxicity"
+      ],
+      "urgency": "high",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 90,
+      "score_reasons": [
+        "\u2248 Near-correct (CICU vs ICU)",
+        "\u2705 Risk scores match high acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 3 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u2705 Urgency label correct for severity"
+      ],
+      "elapsed_s": 76.2
+    },
+    {
+      "rank": 28,
+      "patient_id": "EVAL-043",
+      "age": 76,
+      "sex": "M",
+      "acuity": 1,
+      "chief_complaint": "Ischaemic foot \u2014 cold, pulseless, mottled right foot, sudden onset",
+      "has_history": true,
+      "department": "CICU",
+      "expected_dept": "ICU",
+      "admission_risk": 0.758,
+      "icu_risk": 0.702,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 69%, RAG 100%) \u2014 balanced blend",
+      "red_flags": [
+        "High pain score (9/10)",
+        "Presence of PAD, AF, and DM",
+        "Prior vascular surgery"
+      ],
+      "top_diagnoses": [
+        "Ischemic foot",
+        "Vascular compromise",
+        "PAD"
+      ],
+      "urgency": "high",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 90,
+      "score_reasons": [
+        "\u2248 Near-correct (CICU vs ICU)",
+        "\u2705 Risk scores match high acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 3 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u2705 Urgency label correct for severity"
+      ],
+      "elapsed_s": 61.7
+    },
+    {
+      "rank": 29,
+      "patient_id": "EVAL-048",
+      "age": 42,
+      "sex": "M",
+      "acuity": 1,
+      "chief_complaint": "Opiate overdose \u2014 pinpoint pupils, RR 6, GCS 8, naloxone given",
+      "has_history": true,
+      "department": "CICU",
+      "expected_dept": "ICU",
+      "admission_risk": 0.765,
+      "icu_risk": 0.643,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 65%, RAG 60%) \u2014 balanced blend",
+      "red_flags": [
+        "low respiratory rate",
+        "low blood pressure",
+        "low SpO2"
+      ],
+      "top_diagnoses": [
+        "Opiate overdose",
+        "Respiratory depression",
+        "Cardiac instability"
+      ],
+      "urgency": "high",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 90,
+      "score_reasons": [
+        "\u2248 Near-correct (CICU vs ICU)",
+        "\u2705 Risk scores match high acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 3 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u2705 Urgency label correct for severity"
+      ],
+      "elapsed_s": 6.3
+    },
+    {
+      "rank": 30,
+      "patient_id": "EVAL-049",
+      "age": 61,
+      "sex": "F",
+      "acuity": 2,
+      "chief_complaint": "Breast cancer \u2014 fever 38.8\u00b0C, neutropenia, recent chemotherapy",
+      "has_history": true,
+      "department": "CICU",
+      "expected_dept": "ICU",
+      "admission_risk": 0.75,
+      "icu_risk": 0.702,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 65%, RAG 100%) \u2014 balanced blend",
+      "red_flags": [
+        "High heart rate",
+        "Fever",
+        "Recent chemotherapy and neutropenia"
+      ],
+      "top_diagnoses": [
+        "Sepsis",
+        "Infection",
+        "Neutropenia"
+      ],
+      "urgency": "high",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 90,
+      "score_reasons": [
+        "\u2248 Near-correct (CICU vs ICU)",
+        "\u2705 Risk scores match high acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 3 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u2705 Urgency label correct for severity"
+      ],
+      "elapsed_s": 56.6
+    },
+    {
+      "rank": 31,
+      "patient_id": "EVAL-015",
+      "age": 39,
+      "sex": "M",
+      "acuity": 3,
+      "chief_complaint": "Severe community-acquired pneumonia, SpO2 92%, productive cough 5 days",
+      "has_history": true,
+      "department": "ICU",
+      "expected_dept": "ICU",
+      "admission_risk": 0.644,
+      "icu_risk": 0.494,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 65%, RAG 60%) \u2014 balanced blend",
+      "red_flags": [
+        "SpO2 below normal",
+        "Ongoing productive cough",
+        "Mental status changes"
+      ],
+      "top_diagnoses": [
+        "Severe community-acquired pneumonia",
+        "Respiratory failure",
+        "Sepsis"
+      ],
+      "urgency": "moderate",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 80,
+      "score_reasons": [
+        "\u2705 Correct dept (ICU)",
+        "\u274c Risk scores inconsistent with acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 3 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u2705 Urgency label correct for moderate"
+      ],
+      "elapsed_s": 54.4
+    },
+    {
+      "rank": 32,
+      "patient_id": "EVAL-020",
+      "age": 69,
+      "sex": "M",
+      "acuity": 2,
+      "chief_complaint": "NSTEMI \u2014 troponin elevated, chest discomfort, diaphoresis",
+      "has_history": true,
+      "department": "CICU",
+      "expected_dept": "CICU",
+      "admission_risk": 0.623,
+      "icu_risk": 0.546,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 66%, RAG 80%) \u2014 balanced blend",
+      "red_flags": [
+        "Elevated blood pressure (144/88 mmHg)",
+        "Decreased SpO2 (95%)"
+      ],
+      "top_diagnoses": [
+        "NSTEMI",
+        "CAD",
+        "HTN"
+      ],
+      "urgency": "moderate",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 80,
+      "score_reasons": [
+        "\u2705 Correct dept (CICU)",
+        "\u26a0 Risk plausible but not confident",
+        "\u2705 XGB and RAG agree",
+        "\u2705 2 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u26a0 Urgency 'moderate' unclear"
+      ],
+      "elapsed_s": 77.4
+    },
+    {
+      "rank": 33,
+      "patient_id": "EVAL-014",
+      "age": 64,
+      "sex": "M",
+      "acuity": 3,
+      "chief_complaint": "Hypertensive urgency BP 228/118, headache, blurred vision",
+      "has_history": true,
+      "department": "CICU",
+      "expected_dept": "ADMITTED_GEN",
+      "admission_risk": 0.783,
+      "icu_risk": 0.676,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 74%, RAG 80%) \u2014 balanced blend",
+      "red_flags": [
+        "Current blood pressure of 228/118 mmHg",
+        "Presence of headache and blurred vision"
+      ],
+      "top_diagnoses": [
+        "Hypertensive Emergency",
+        "CKD",
+        "DM"
+      ],
+      "urgency": "high",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 40,
+      "score_reasons": [
+        "\u274c Wrong dept (CICU vs expected ADMITTED_GEN)",
+        "\u274c Risk scores inconsistent with acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 2 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u2705 Urgency label correct for moderate"
+      ],
+      "elapsed_s": 82.2
+    },
+    {
+      "rank": 34,
+      "patient_id": "EVAL-016",
+      "age": 77,
+      "sex": "F",
+      "acuity": 3,
+      "chief_complaint": "Fall at home, right hip pain, unable to weight-bear, pain 9/10",
+      "has_history": true,
+      "department": "ICU",
+      "expected_dept": "ADMITTED_GEN",
+      "admission_risk": 0.756,
+      "icu_risk": 0.702,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 68%, RAG 100%) \u2014 balanced blend",
+      "red_flags": [
+        "Severe pain",
+        "Inability to weight-bear",
+        "Potential for decompensation"
+      ],
+      "top_diagnoses": [
+        "Hip fracture",
+        "Osteoporosis-related complications"
+      ],
+      "urgency": "high",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 40,
+      "score_reasons": [
+        "\u274c Wrong dept (ICU vs expected ADMITTED_GEN)",
+        "\u274c Risk scores inconsistent with acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 3 red flags identified",
+        "\u2705 2 differential diagnoses",
+        "\u2705 Urgency label correct for moderate"
+      ],
+      "elapsed_s": 38.8
+    },
+    {
+      "rank": 35,
+      "patient_id": "EVAL-019",
+      "age": 31,
+      "sex": "M",
+      "acuity": 3,
+      "chief_complaint": "Acute pancreatitis \u2014 severe epigastric pain 9/10, vomiting",
+      "has_history": true,
+      "department": "ICU",
+      "expected_dept": "ADMITTED_GEN",
+      "admission_risk": 0.795,
+      "icu_risk": 0.643,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 74%, RAG 60%) \u2014 balanced blend",
+      "red_flags": [
+        "Elevated heart rate and respiratory rate",
+        "Past medical history of alcohol-related pancreatitis"
+      ],
+      "top_diagnoses": [
+        "Acute pancreatitis",
+        "Alcohol-related pancreatitis",
+        "Possible pancreatic necrosis or infection"
+      ],
+      "urgency": "high",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 40,
+      "score_reasons": [
+        "\u274c Wrong dept (ICU vs expected ADMITTED_GEN)",
+        "\u274c Risk scores inconsistent with acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 2 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u2705 Urgency label correct for moderate"
+      ],
+      "elapsed_s": 6.9
+    },
+    {
+      "rank": 36,
+      "patient_id": "EVAL-024",
+      "age": 41,
+      "sex": "M",
+      "acuity": 3,
+      "chief_complaint": "Renal colic \u2014 sudden severe left flank pain 10/10, haematuria",
+      "has_history": true,
+      "department": "ICU",
+      "expected_dept": "ADMITTED_GEN",
+      "admission_risk": 0.648,
+      "icu_risk": 0.53,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 66%, RAG 60%) \u2014 balanced blend",
+      "red_flags": [
+        "High blood pressure (142/88 mmHg)",
+        "Elevated heart rate (96 bpm)"
+      ],
+      "top_diagnoses": [
+        "Renal colic",
+        "Haematuria",
+        "Acute kidney injury"
+      ],
+      "urgency": "moderate",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 40,
+      "score_reasons": [
+        "\u274c Wrong dept (ICU vs expected ADMITTED_GEN)",
+        "\u274c Risk scores inconsistent with acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 2 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u2705 Urgency label correct for moderate"
+      ],
+      "elapsed_s": 62.7
+    },
+    {
+      "rank": 37,
+      "patient_id": "EVAL-027",
+      "age": 58,
+      "sex": "M",
+      "acuity": 3,
+      "chief_complaint": "Hypoglycaemia \u2014 blood glucose 38, confused, known diabetic",
+      "has_history": true,
+      "department": "CICU",
+      "expected_dept": "ADMITTED_GEN",
+      "admission_risk": 0.619,
+      "icu_risk": 0.546,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 65%, RAG 80%) \u2014 balanced blend",
+      "red_flags": [
+        "The patient's history of non-compliance with diabetes management and the presence of a blood glucose level of 38 mg/dL are red flags that warrant urgent attention."
+      ],
+      "top_diagnoses": [
+        "Hypoglycemia",
+        "Diabetes mellitus",
+        "Potential complications such as seizures or coma if the blood glucose levels drop below 40 mg/dL."
+      ],
+      "urgency": "moderate",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 40,
+      "score_reasons": [
+        "\u274c Wrong dept (CICU vs expected ADMITTED_GEN)",
+        "\u274c Risk scores inconsistent with acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 1 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u2705 Urgency label correct for moderate"
+      ],
+      "elapsed_s": 83.2
+    },
+    {
+      "rank": 38,
+      "patient_id": "EVAL-032",
+      "age": 73,
+      "sex": "F",
+      "acuity": 3,
+      "chief_complaint": "Lower GI bleed \u2014 bright red rectal bleeding, 3 episodes today",
+      "has_history": true,
+      "department": "CICU",
+      "expected_dept": "ADMITTED_GEN",
+      "admission_risk": 0.646,
+      "icu_risk": 0.531,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 65%, RAG 60%) \u2014 balanced blend",
+      "red_flags": [
+        "Ongoing lower GI bleed",
+        "Anticoagulation for AF",
+        "Patient's age"
+      ],
+      "top_diagnoses": [
+        "Lower GI bleed",
+        "Hemodynamic instability"
+      ],
+      "urgency": "moderate",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 40,
+      "score_reasons": [
+        "\u274c Wrong dept (CICU vs expected ADMITTED_GEN)",
+        "\u274c Risk scores inconsistent with acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 3 red flags identified",
+        "\u2705 2 differential diagnoses",
+        "\u2705 Urgency label correct for moderate"
+      ],
+      "elapsed_s": 57.6
+    },
+    {
+      "rank": 39,
+      "patient_id": "EVAL-033",
+      "age": 83,
+      "sex": "M",
+      "acuity": 3,
+      "chief_complaint": "Acute urinary retention \u2014 suprapubic pain 8/10, unable to void 12h",
+      "has_history": true,
+      "department": "ICU",
+      "expected_dept": "ADMITTED_GEN",
+      "admission_risk": 0.811,
+      "icu_risk": 0.643,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 79%, RAG 60%) \u2014 balanced blend",
+      "red_flags": [
+        "High pain score (8/10)",
+        "Presence of CKD",
+        "Patient's age"
+      ],
+      "top_diagnoses": [
+        "Urinary retention",
+        "Urosepsis",
+        "Sepsis"
+      ],
+      "urgency": "high",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 40,
+      "score_reasons": [
+        "\u274c Wrong dept (ICU vs expected ADMITTED_GEN)",
+        "\u274c Risk scores inconsistent with acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 3 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u2705 Urgency label correct for moderate"
+      ],
+      "elapsed_s": 72.0
+    },
+    {
+      "rank": 40,
+      "patient_id": "EVAL-037",
+      "age": 62,
+      "sex": "M",
+      "acuity": 3,
+      "chief_complaint": "Chest tightness and exertional dyspnoea \u2014 new symptoms 2 weeks",
+      "has_history": true,
+      "department": "CICU",
+      "expected_dept": "ADMITTED_GEN",
+      "admission_risk": 0.617,
+      "icu_risk": 0.546,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 65%, RAG 80%) \u2014 balanced blend",
+      "red_flags": [
+        "Hypertension",
+        "Tachycardia",
+        "Exertional dyspnea"
+      ],
+      "top_diagnoses": [
+        "Acute coronary syndrome",
+        "Heart failure",
+        "Cardiac arrhythmia"
+      ],
+      "urgency": "moderate",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 40,
+      "score_reasons": [
+        "\u274c Wrong dept (CICU vs expected ADMITTED_GEN)",
+        "\u274c Risk scores inconsistent with acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 3 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u2705 Urgency label correct for moderate"
+      ],
+      "elapsed_s": 7.3
+    },
+    {
+      "rank": 41,
+      "patient_id": "EVAL-039",
+      "age": 71,
+      "sex": "F",
+      "acuity": 3,
+      "chief_complaint": "Syncope \u2014 brief loss of consciousness, now alert, no trauma",
+      "has_history": true,
+      "department": "CICU",
+      "expected_dept": "ADMITTED_GEN",
+      "admission_risk": 0.788,
+      "icu_risk": 0.676,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 76%, RAG 80%) \u2014 balanced blend",
+      "red_flags": [
+        "Low heart rate (52 bpm)",
+        "Low blood pressure (108/64 mmHg)",
+        "Past medical history of complete heart block pacemaker and vasovagal syncope"
+      ],
+      "top_diagnoses": [
+        "Cardiac instability",
+        "Vasovagal episode",
+        "Cardiac conduction issue"
+      ],
+      "urgency": "high",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 40,
+      "score_reasons": [
+        "\u274c Wrong dept (CICU vs expected ADMITTED_GEN)",
+        "\u274c Risk scores inconsistent with acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 3 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u2705 Urgency label correct for moderate"
+      ],
+      "elapsed_s": 97.3
+    },
+    {
+      "rank": 42,
+      "patient_id": "EVAL-044",
+      "age": 48,
+      "sex": "F",
+      "acuity": 3,
+      "chief_complaint": "New rash \u2014 generalised urticaria and angioedema, no airway involvement",
+      "has_history": true,
+      "department": "ICU",
+      "expected_dept": "ADMITTED_GEN",
+      "admission_risk": 0.603,
+      "icu_risk": 0.558,
+      "branches_agree": true,
+      "confidence_note": "Both branches confident (XGBoost 66%, RAG 100%) \u2014 balanced blend",
+      "red_flags": [
+        "Recent ACE inhibitor initiation",
+        "Potential for decompensation in a relatively young patient"
+      ],
+      "top_diagnoses": [
+        "Angioedema",
+        "Urticaria",
+        "Allergic Reaction"
+      ],
+      "urgency": "moderate",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 40,
+      "score_reasons": [
+        "\u274c Wrong dept (ICU vs expected ADMITTED_GEN)",
+        "\u274c Risk scores inconsistent with acuity",
+        "\u2705 XGB and RAG agree",
+        "\u2705 2 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u2705 Urgency label correct for moderate"
+      ],
+      "elapsed_s": 51.5
+    },
+    {
+      "rank": 43,
+      "patient_id": "EVAL-029",
+      "age": 50,
+      "sex": "M",
+      "acuity": 4,
+      "chief_complaint": "Alcohol intoxication \u2014 unsteady gait, slurred speech, GCS 13",
+      "has_history": true,
+      "department": "ADMITTED_GEN",
+      "expected_dept": "ED_OBS",
+      "admission_risk": 0.675,
+      "icu_risk": 0.331,
+      "branches_agree": false,
+      "confidence_note": "Both branches confident (XGBoost 72%, RAG 60%) \u2014 balanced blend; branches disagree \u2192 conservative admission floor applied",
+      "red_flags": [
+        "Low temperature (36.8\u00b0F)",
+        "Chronic alcohol use disorder"
+      ],
+      "top_diagnoses": [
+        "Alcohol intoxication",
+        "Hypothermia"
+      ],
+      "urgency": "moderate",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 30,
+      "score_reasons": [
+        "\u274c Wrong dept (ADMITTED_GEN vs expected ED_OBS)",
+        "\u274c Risk scores inconsistent with acuity",
+        "\u26a0 Branches disagree (interesting for demo)",
+        "\u2705 2 red flags identified",
+        "\u2705 2 differential diagnoses",
+        "\u2705 Urgency label correct for low acuity"
+      ],
+      "elapsed_s": 59.7
+    },
+    {
+      "rank": 44,
+      "patient_id": "EVAL-030",
+      "age": 19,
+      "sex": "M",
+      "acuity": 2,
+      "chief_complaint": "First-ever seizure \u2014 post-ictal, witnessed tonic-clonic 3 min",
+      "has_history": true,
+      "department": "ADMITTED_GEN",
+      "expected_dept": "ICU",
+      "admission_risk": 0.55,
+      "icu_risk": 0.216,
+      "branches_agree": false,
+      "confidence_note": "Both branches confident (XGBoost 65%, RAG 80%) \u2014 balanced blend; branches disagree \u2192 conservative admission floor applied",
+      "red_flags": [
+        "None"
+      ],
+      "top_diagnoses": [
+        "Seizure disorder",
+        "Post-ictal psychosis"
+      ],
+      "urgency": "low",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 30,
+      "score_reasons": [
+        "\u274c Wrong dept (ADMITTED_GEN vs expected ICU)",
+        "\u26a0 Risk plausible but not confident",
+        "\u26a0 Branches disagree (interesting for demo)",
+        "\u2705 1 red flags identified",
+        "\u2705 2 differential diagnoses",
+        "\u26a0 Urgency 'low' unclear"
+      ],
+      "elapsed_s": 74.8
+    },
+    {
+      "rank": 45,
+      "patient_id": "EVAL-036",
+      "age": 28,
+      "sex": "F",
+      "acuity": 4,
+      "chief_complaint": "Right ankle sprain after fall \u2014 unable to weight-bear, swollen",
+      "has_history": true,
+      "department": "ADMITTED_GEN",
+      "expected_dept": "ED_OBS",
+      "admission_risk": 0.55,
+      "icu_risk": 0.217,
+      "branches_agree": false,
+      "confidence_note": "Both branches confident (XGBoost 65%, RAG 60%) \u2014 balanced blend; branches disagree \u2192 conservative admission floor applied",
+      "red_flags": [
+        "High pain score",
+        "Inability to weight-bear"
+      ],
+      "top_diagnoses": [
+        "Ankle sprain",
+        "Soft tissue injury"
+      ],
+      "urgency": "low",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 30,
+      "score_reasons": [
+        "\u274c Wrong dept (ADMITTED_GEN vs expected ED_OBS)",
+        "\u274c Risk scores inconsistent with acuity",
+        "\u26a0 Branches disagree (interesting for demo)",
+        "\u2705 2 red flags identified",
+        "\u2705 2 differential diagnoses",
+        "\u2705 Urgency label correct for low acuity"
+      ],
+      "elapsed_s": 8.4
+    },
+    {
+      "rank": 46,
+      "patient_id": "EVAL-038",
+      "age": 45,
+      "sex": "F",
+      "acuity": 4,
+      "chief_complaint": "Panic attack \u2014 palpitations, chest tightness, hyperventilation",
+      "has_history": true,
+      "department": "ADMITTED_GEN",
+      "expected_dept": "ED_OBS",
+      "admission_risk": 0.618,
+      "icu_risk": 0.346,
+      "branches_agree": false,
+      "confidence_note": "Both branches confident (XGBoost 65%, RAG 80%) \u2014 balanced blend; branches disagree \u2192 conservative admission floor applied",
+      "red_flags": [
+        "Anxiety disorder",
+        "Prior ED visits with similar presentations"
+      ],
+      "top_diagnoses": [
+        "Anxiety disorder",
+        "Panic attack",
+        "Chest pain"
+      ],
+      "urgency": "moderate",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 30,
+      "score_reasons": [
+        "\u274c Wrong dept (ADMITTED_GEN vs expected ED_OBS)",
+        "\u274c Risk scores inconsistent with acuity",
+        "\u26a0 Branches disagree (interesting for demo)",
+        "\u2705 2 red flags identified",
+        "\u2705 3 differential diagnoses",
+        "\u2705 Urgency label correct for low acuity"
+      ],
+      "elapsed_s": 58.7
+    },
+    {
+      "rank": 47,
+      "patient_id": "EVAL-040",
+      "age": 32,
+      "sex": "M",
+      "acuity": 4,
+      "chief_complaint": "Minor forearm laceration \u2014 5cm kitchen knife wound, bleeding controlled",
+      "has_history": true,
+      "department": "ADMITTED_GEN",
+      "expected_dept": "ED_OBS",
+      "admission_risk": 0.55,
+      "icu_risk": 0.218,
+      "branches_agree": false,
+      "confidence_note": "Both branches confident (XGBoost 68%, RAG 60%) \u2014 balanced blend; branches disagree \u2192 conservative admission floor applied",
+      "red_flags": [
+        "None"
+      ],
+      "top_diagnoses": [
+        "Minor forearm laceration",
+        "Wound infection"
+      ],
+      "urgency": "low",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 30,
+      "score_reasons": [
+        "\u274c Wrong dept (ADMITTED_GEN vs expected ED_OBS)",
+        "\u274c Risk scores inconsistent with acuity",
+        "\u26a0 Branches disagree (interesting for demo)",
+        "\u2705 1 red flags identified",
+        "\u2705 2 differential diagnoses",
+        "\u2705 Urgency label correct for low acuity"
+      ],
+      "elapsed_s": 58.2
+    },
+    {
+      "rank": 48,
+      "patient_id": "EVAL-046",
+      "age": 56,
+      "sex": "M",
+      "acuity": 5,
+      "chief_complaint": "Chronic low back pain flare \u2014 unable to get out of bed today",
+      "has_history": true,
+      "department": "ADMITTED_GEN",
+      "expected_dept": "ED_OBS",
+      "admission_risk": 0.55,
+      "icu_risk": 0.219,
+      "branches_agree": false,
+      "confidence_note": "Both branches confident (XGBoost 66%, RAG 60%) \u2014 balanced blend; branches disagree \u2192 conservative admission floor applied",
+      "red_flags": [
+        "None"
+      ],
+      "top_diagnoses": [
+        "Chronic low back pain",
+        "Acute exacerbation of chronic low back pain"
+      ],
+      "urgency": "low",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 30,
+      "score_reasons": [
+        "\u274c Wrong dept (ADMITTED_GEN vs expected ED_OBS)",
+        "\u274c Risk scores inconsistent with acuity",
+        "\u26a0 Branches disagree (interesting for demo)",
+        "\u2705 1 red flags identified",
+        "\u2705 2 differential diagnoses",
+        "\u2705 Urgency label correct for low acuity"
+      ],
+      "elapsed_s": 55.8
+    },
+    {
+      "rank": 49,
+      "patient_id": "EVAL-022",
+      "age": 27,
+      "sex": "M",
+      "acuity": 2,
+      "chief_complaint": "Acute asthma exacerbation \u2014 wheeze, accessory muscle use, PEFR 35%",
+      "has_history": true,
+      "department": "ADMITTED_GEN",
+      "expected_dept": "ICU",
+      "admission_risk": 0.659,
+      "icu_risk": 0.331,
+      "branches_agree": false,
+      "confidence_note": "Both branches confident (XGBoost 68%, RAG 60%) \u2014 balanced blend; branches disagree \u2192 conservative admission floor applied",
+      "red_flags": [
+        "tachycardia (HR 108 bpm), accessory muscle use"
+      ],
+      "top_diagnoses": [
+        "asthma exacerbation"
+      ],
+      "urgency": "moderate",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 22,
+      "score_reasons": [
+        "\u274c Wrong dept (ADMITTED_GEN vs expected ICU)",
+        "\u26a0 Risk plausible but not confident",
+        "\u26a0 Branches disagree (interesting for demo)",
+        "\u2705 1 red flags identified",
+        "\u26a0 Urgency 'moderate' unclear"
+      ],
+      "elapsed_s": 5.0
+    },
+    {
+      "rank": 50,
+      "patient_id": "EVAL-026",
+      "age": 35,
+      "sex": "F",
+      "acuity": 4,
+      "chief_complaint": "Migraine with aura \u2014 severe unilateral headache, photophobia, vomiting",
+      "has_history": true,
+      "department": "ADMITTED_GEN",
+      "expected_dept": "ED_OBS",
+      "admission_risk": 0.646,
+      "icu_risk": 0.331,
+      "branches_agree": false,
+      "confidence_note": "Both branches confident (XGBoost 65%, RAG 60%) \u2014 balanced blend; branches disagree \u2192 conservative admission floor applied",
+      "red_flags": [],
+      "top_diagnoses": [],
+      "urgency": "unknown",
+      "rag_narrative": "",
+      "xgb_admission_prob": 0,
+      "xgb_icu_2h_prob": 0,
+      "hospital_routing_dept": "",
+      "demo_score": 5,
+      "score_reasons": [
+        "\u274c Wrong dept (ADMITTED_GEN vs expected ED_OBS)",
+        "\u274c Risk scores inconsistent with acuity",
+        "\u26a0 Branches disagree (interesting for demo)",
+        "\u26a0 Urgency 'unknown' unclear"
+      ],
+      "elapsed_s": 2.5
+    }
+  ],
+  "failed": []
+}
