@@ -31,6 +31,7 @@ TriageGuard combines quantitative clinical risk modeling, historical case reason
 ---
 
 ## 1. Overview
+Assumed jurisdiction: India — governed by the Digital Personal Data Protection Act (DPDP) 2023, the Ayushman Bharat Digital Mission's Health Data Management Policy (ABDM, built on EHR Standards 2016 / FHIR R4), the National Medical Commission's (NMC) record-keeping regulations, the Clinical Establishments (Registration and Regulation) Act 2010, and CERT-In's breach-reporting directions.
 
 TriageGuard is a decision-support system for emergency department triage and bed allocation. It does not diagnose or treat patients — it takes the information already available at triage time and produces two distinct, clearly separated answers for clinical staff:
 
@@ -335,4 +336,8 @@ python scripts/chat_with_agent.py
 
 ## 19. Conclusion
 
-TriageGuard demonstrates that clinical risk assessment and hospital operational routing can be built as genuinely separable concerns — a quantitative model and a historical-reasoning model produce a clinical picture that never changes with bed availability, while a hospital-specific, nurse-calibrated policy decides allocation under a hard safety gate. That separation, combined with a `hospital_id` boundary threaded consistently through configuration, state, retrieval, calibration, and routing, lets the same engineering effort serve one hospital or many without duplicating logic — the core requirement for a system meant to generalize beyond a single deployment.
+TriageGuard demonstrates that clinical risk assessment and hospital operational routing can be built as genuinely separable concerns — a quantitative model and a historical-reasoning model produce a clinical picture that never changes with bed availability, while a hospital-specific, nurse-calibrated policy decides allocation under a hard safety gate. That separation, combined with a `hospital_id` boundary threaded consistently through configuration, state, retrieval, calibration, and routing, lets the same engineering effort serve one hospital or many without duplicating logic — the core requirement for a system meant to generalize beyond a single deployment. 
+
+## 20. Dataset Used
+
+Our model is trained on real world patient from data of MIMIC IV
