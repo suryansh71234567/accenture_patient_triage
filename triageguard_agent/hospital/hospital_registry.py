@@ -36,6 +36,7 @@ from __future__ import annotations
 import json
 import logging
 import shutil
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -80,6 +81,15 @@ class HospitalRegistry:
         # tmp_path never writes into the real repo data directory.
         self._base_dir = self._manifest_path.parent
         self._hospitals: Dict[str, HospitalContext] = {}
+        # Guards register()'s collision-check-then-write sequence — confirmed
+        # racy under forced concurrent interleaving (Phase 6B): two
+        # concurrent registrations of the same hospital_id can both pass the
+        # `hospital_id in self._hospitals` check before either has written,
+        # both then write config/manifest files and both insert into
+        # self._hospitals (last write wins), silently orphaning the loser's
+        # already-returned HospitalContext (a caller holding it would be
+        # operating on a state_service no longer reachable via get()).
+        self._register_lock = threading.Lock()
 
         self._load_manifest()
         self._ensure_default_registered()
@@ -158,38 +168,42 @@ class HospitalRegistry:
             raise ValueError("hospital_name must not be empty.")
         if hospital_id == DEFAULT_HOSPITAL_ID:
             raise ValueError(f"{DEFAULT_HOSPITAL_ID!r} is reserved for the default hospital.")
-        if hospital_id in self._hospitals:
-            raise ValueError(
-                f"Hospital {hospital_id!r} is already registered. "
-                "Choose a different hospital_id."
-            )
         if config_path is not None and config_dict is not None:
             raise ValueError("Provide config_path or config_dict, not both.")
 
-        target_path = self._base_dir / hospital_id / "hospital_config.json"
-        target_path.parent.mkdir(parents=True, exist_ok=True)
+        # The collision check and the write (files + self._hospitals +
+        # manifest) must be atomic together — see _register_lock's docstring.
+        with self._register_lock:
+            if hospital_id in self._hospitals:
+                raise ValueError(
+                    f"Hospital {hospital_id!r} is already registered. "
+                    "Choose a different hospital_id."
+                )
 
-        if config_dict is not None:
-            with open(target_path, "w", encoding="utf-8") as fh:
-                json.dump(config_dict, fh, indent=2)
-        elif config_path is not None:
-            config_path = Path(config_path)
-            if not config_path.exists():
-                raise ValueError(f"config_path {config_path} does not exist.")
-            shutil.copyfile(config_path, target_path)
-        else:
-            # No configuration supplied — clone the default hospital's
-            # config as a sane starting point the new hospital can edit.
-            shutil.copyfile(_DEFAULT_HOSPITAL_CONFIG, target_path)
+            target_path = self._base_dir / hospital_id / "hospital_config.json"
+            target_path.parent.mkdir(parents=True, exist_ok=True)
 
-        context = HospitalContext(
-            hospital_id=hospital_id,
-            hospital_name=hospital_name,
-            config_path=target_path,
-            state_service=HospitalStateService(HospitalStateStore(target_path)),
-        )
-        self._hospitals[hospital_id] = context
-        self._save_manifest()
+            if config_dict is not None:
+                with open(target_path, "w", encoding="utf-8") as fh:
+                    json.dump(config_dict, fh, indent=2)
+            elif config_path is not None:
+                config_path = Path(config_path)
+                if not config_path.exists():
+                    raise ValueError(f"config_path {config_path} does not exist.")
+                shutil.copyfile(config_path, target_path)
+            else:
+                # No configuration supplied — clone the default hospital's
+                # config as a sane starting point the new hospital can edit.
+                shutil.copyfile(_DEFAULT_HOSPITAL_CONFIG, target_path)
+
+            context = HospitalContext(
+                hospital_id=hospital_id,
+                hospital_name=hospital_name,
+                config_path=target_path,
+                state_service=HospitalStateService(HospitalStateStore(target_path)),
+            )
+            self._hospitals[hospital_id] = context
+            self._save_manifest()
         logger.info("Registered hospital %r (%s).", hospital_id, hospital_name)
         return context
 

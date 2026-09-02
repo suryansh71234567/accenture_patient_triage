@@ -13,8 +13,15 @@ vi.mock("../api/client", () => ({
     triageSimulated: vi.fn(),
   },
 }));
+
+const mockSession = vi.hoisted(() => ({
+  sessionId: "s1" as string | null,
+  proposeAction: vi.fn(),
+  mutationTick: 0,
+  hospitalId: "default",
+}));
 vi.mock("../state/SessionContext", () => ({
-  useSession: () => ({ sessionId: "s1", proposeAction: vi.fn(), mutationTick: 0, hospitalId: "default" }),
+  useSession: () => mockSession,
 }));
 
 function renderWorkspace(id = "CHART-ONLY") {
@@ -50,6 +57,10 @@ function chartDetail(id = "CHART-ONLY") {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockSession.sessionId = "s1";
+  mockSession.proposeAction = vi.fn();
+  mockSession.mutationTick = 0;
+  mockSession.hospitalId = "default";
   (api.dashboard as ReturnType<typeof vi.fn>).mockResolvedValue(emptyDash);
 });
 
@@ -130,5 +141,172 @@ describe("PatientWorkspace", () => {
     await waitFor(() => expect(api.assessPatient).toHaveBeenCalledWith("CHART-ONLY", "s1", "default"));
     expect(api.manualArrival).not.toHaveBeenCalled();
     expect(api.triageSimulated).not.toHaveBeenCalled();
+  });
+
+  describe("observation flow", () => {
+    it("renders the observation controls, with Record disabled until a value is entered", async () => {
+      (api.getPatient as ReturnType<typeof vi.fn>).mockResolvedValue(chartDetail());
+      renderWorkspace();
+      await waitFor(() => expect(screen.getByText("Record a new observation")).toBeInTheDocument());
+      expect(screen.getByText("Record").closest("button")).toBeDisabled();
+    });
+
+    it("submitObservation proposes the correct real action for the real patient in context", async () => {
+      (api.getPatient as ReturnType<typeof vi.fn>).mockResolvedValue(chartDetail("52"));
+      mockSession.proposeAction = vi.fn().mockResolvedValue({ status: "failed", data: null, error: { code: "REJECTED", message: "cancelled" } });
+      renderWorkspace("52");
+      await waitFor(() => expect(screen.getByText("Record a new observation")).toBeInTheDocument());
+
+      // Default observation type is "Heart rate" (first OBS_TYPES entry).
+      const valueInput = screen.getByPlaceholderText("bpm");
+      fireEvent.change(valueInput, { target: { value: "118" } });
+      fireEvent.click(screen.getByText("Record"));
+
+      await waitFor(() => expect(mockSession.proposeAction).toHaveBeenCalledWith("add_patient_observation", {
+        patient_id: "52", observation_type: "heart_rate", value: 118,
+      }));
+    });
+
+    it("submits the currently-selected observation type, not always the default", async () => {
+      (api.getPatient as ReturnType<typeof vi.fn>).mockResolvedValue(chartDetail());
+      mockSession.proposeAction = vi.fn().mockResolvedValue({ status: "failed", data: null, error: { code: "REJECTED", message: "cancelled" } });
+      renderWorkspace();
+      await waitFor(() => expect(screen.getByText("Record a new observation")).toBeInTheDocument());
+
+      fireEvent.change(screen.getByDisplayValue("Heart rate"), { target: { value: "spo2" } });
+      fireEvent.change(screen.getByPlaceholderText("%"), { target: { value: "91" } });
+      fireEvent.click(screen.getByText("Record"));
+
+      await waitFor(() => expect(mockSession.proposeAction).toHaveBeenCalledWith("add_patient_observation", {
+        patient_id: "CHART-ONLY", observation_type: "spo2", value: 91,
+      }));
+    });
+
+    it("on a real human-in-the-loop confirmation (status executed), clears the input and refreshes both the chart and the assessment", async () => {
+      (api.getPatient as ReturnType<typeof vi.fn>).mockResolvedValue(chartDetail());
+      (api.assessPatient as ReturnType<typeof vi.fn>).mockResolvedValue({
+        assessment: {
+          department: "ICU", department_reasoning: "r", acuity_tier: 2,
+          reconciled_admission_risk: 0.5, reconciled_icu_risk: 0.3, branches_agree: true,
+          confidence_note: "c", top_diagnoses: [], red_flags: [],
+        },
+        resource_check: null,
+      });
+      mockSession.proposeAction = vi.fn().mockResolvedValue({ status: "executed", data: { message: "ok" }, error: null });
+      renderWorkspace();
+      await waitFor(() => expect(screen.getByText("Record a new observation")).toBeInTheDocument());
+
+      const valueInput = screen.getByPlaceholderText("bpm") as HTMLInputElement;
+      fireEvent.change(valueInput, { target: { value: "118" } });
+      fireEvent.click(screen.getByText("Record"));
+
+      await waitFor(() => expect(mockSession.proposeAction).toHaveBeenCalled());
+      // Real refetch of the chart record (not fabricated) after a confirmed write.
+      await waitFor(() => expect(api.getPatient).toHaveBeenCalledTimes(2));
+      // Re-runs the SAME hospital-scoped assess call "Run assessment" uses —
+      // never trusts the backend's own piggybacked reassessment payload
+      // (that one has no hospital_id, see the code's own comment).
+      await waitFor(() => expect(api.assessPatient).toHaveBeenCalledWith("CHART-ONLY", "s1", "default"));
+      await waitFor(() => expect((screen.getByPlaceholderText("bpm") as HTMLInputElement).value).toBe(""));
+    });
+
+    it("on cancellation/rejection (status failed), does NOT clear the input and does NOT refetch or reassess", async () => {
+      (api.getPatient as ReturnType<typeof vi.fn>).mockResolvedValue(chartDetail());
+      mockSession.proposeAction = vi.fn().mockResolvedValue({
+        status: "failed", data: null, error: { code: "CONFIRM_FAILED", message: "Nurse cancelled." },
+      });
+      renderWorkspace();
+      await waitFor(() => expect(screen.getByText("Record a new observation")).toBeInTheDocument());
+
+      const valueInput = screen.getByPlaceholderText("bpm") as HTMLInputElement;
+      fireEvent.change(valueInput, { target: { value: "118" } });
+      fireEvent.click(screen.getByText("Record"));
+
+      await waitFor(() => expect(mockSession.proposeAction).toHaveBeenCalled());
+      expect(api.getPatient).toHaveBeenCalledTimes(1); // no refetch
+      expect(api.assessPatient).not.toHaveBeenCalled(); // no reassessment
+      expect(valueInput.value).toBe("118"); // not silently cleared, so the nurse can see/retry it
+      // A deliberate cancellation is not an error — by design, no error banner for this path.
+      expect(screen.queryByText("Nurse cancelled.")).not.toBeInTheDocument();
+    });
+
+    it("a retry clears the previous error banner", async () => {
+      (api.getPatient as ReturnType<typeof vi.fn>).mockResolvedValue(chartDetail());
+      mockSession.proposeAction = vi.fn()
+        .mockRejectedValueOnce(new Error("Network error"))
+        .mockResolvedValueOnce({ status: "executed", data: { message: "ok" }, error: null });
+      renderWorkspace();
+      await waitFor(() => expect(screen.getByText("Record a new observation")).toBeInTheDocument());
+
+      fireEvent.change(screen.getByPlaceholderText("bpm"), { target: { value: "118" } });
+      fireEvent.click(screen.getByText("Record"));
+      await waitFor(() => expect(screen.getByText("Network error")).toBeInTheDocument());
+
+      fireEvent.change(screen.getByPlaceholderText("bpm"), { target: { value: "120" } });
+      fireEvent.click(screen.getByText("Record"));
+      await waitFor(() => expect(screen.queryByText("Network error")).not.toBeInTheDocument());
+    });
+
+    it("stays busy (Record disabled) while a confirmation is genuinely pending, matching PendingActionModal's resolving state", async () => {
+      (api.getPatient as ReturnType<typeof vi.fn>).mockResolvedValue(chartDetail());
+      let resolveProposal!: (v: unknown) => void;
+      mockSession.proposeAction = vi.fn().mockReturnValue(new Promise((r) => { resolveProposal = r; }));
+      renderWorkspace();
+      await waitFor(() => expect(screen.getByText("Record a new observation")).toBeInTheDocument());
+
+      fireEvent.change(screen.getByPlaceholderText("bpm"), { target: { value: "118" } });
+      fireEvent.click(screen.getByText("Record"));
+
+      await waitFor(() => expect(screen.getByText("Record").closest("button")).toBeDisabled());
+      resolveProposal({ status: "failed", data: null, error: { code: "REJECTED", message: "no" } });
+      await waitFor(() => expect(screen.getByText("Record").closest("button")).not.toBeDisabled());
+    });
+
+    it("re-enables Record and shows a visible error after a network/backend failure (proposeAction throws), not just a silent unhandled rejection", async () => {
+      (api.getPatient as ReturnType<typeof vi.fn>).mockResolvedValue(chartDetail());
+      mockSession.proposeAction = vi.fn().mockRejectedValue(new Error("Network error"));
+      renderWorkspace();
+      await waitFor(() => expect(screen.getByText("Record a new observation")).toBeInTheDocument());
+
+      fireEvent.change(screen.getByPlaceholderText("bpm"), { target: { value: "118" } });
+      fireEvent.click(screen.getByText("Record"));
+
+      await waitFor(() => expect(screen.getByText("Record").closest("button")).not.toBeDisabled());
+      await waitFor(() => expect(screen.getByText("Network error")).toBeInTheDocument());
+      expect(api.getPatient).toHaveBeenCalledTimes(1);
+    });
+
+    it("unmounting while an observation submission is in flight does not throw", async () => {
+      (api.getPatient as ReturnType<typeof vi.fn>).mockResolvedValue(chartDetail());
+      let resolveProposal!: (v: unknown) => void;
+      mockSession.proposeAction = vi.fn().mockReturnValue(new Promise((r) => { resolveProposal = r; }));
+      const { unmount } = renderWorkspace();
+      await waitFor(() => expect(screen.getByText("Record a new observation")).toBeInTheDocument());
+
+      fireEvent.change(screen.getByPlaceholderText("bpm"), { target: { value: "118" } });
+      fireEvent.click(screen.getByText("Record"));
+      await waitFor(() => expect(screen.getByText("Record").closest("button")).toBeDisabled());
+
+      expect(() => unmount()).not.toThrow();
+      expect(() => resolveProposal({ status: "executed", data: { message: "ok" }, error: null })).not.toThrow();
+    });
+
+    it("rapid repeated clicks on Record while busy only propose the action once", async () => {
+      (api.getPatient as ReturnType<typeof vi.fn>).mockResolvedValue(chartDetail());
+      let resolveProposal!: (v: unknown) => void;
+      mockSession.proposeAction = vi.fn().mockReturnValue(new Promise((r) => { resolveProposal = r; }));
+      renderWorkspace();
+      await waitFor(() => expect(screen.getByText("Record a new observation")).toBeInTheDocument());
+
+      fireEvent.change(screen.getByPlaceholderText("bpm"), { target: { value: "118" } });
+      const recordButton = screen.getByText("Record").closest("button")!;
+      fireEvent.click(recordButton);
+      await waitFor(() => expect(recordButton).toBeDisabled());
+      fireEvent.click(recordButton);
+      fireEvent.click(recordButton);
+
+      expect(mockSession.proposeAction).toHaveBeenCalledTimes(1);
+      resolveProposal({ status: "executed", data: { message: "ok" }, error: null });
+    });
   });
 });

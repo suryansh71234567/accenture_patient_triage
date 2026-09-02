@@ -58,6 +58,7 @@ export function PatientWorkspace() {
   const [obsType, setObsType] = useState(OBS_TYPES[0].value);
   const [obsValue, setObsValue] = useState("");
   const [obsBusy, setObsBusy] = useState(false);
+  const [obsError, setObsError] = useState<string | null>(null);
 
   const lastTick = useMemo(() => mutationTick, []);
   useEffect(() => {
@@ -103,6 +104,7 @@ export function PatientWorkspace() {
   const submitObservation = async () => {
     if (!sessionId || !obsValue.trim()) return;
     setObsBusy(true);
+    setObsError(null);
     try {
       const outcome = await proposeAction("add_patient_observation", {
         patient_id: id,
@@ -121,6 +123,16 @@ export function PatientWorkspace() {
         // assessment" button uses instead of reading that payload.
         await runAssessment();
       }
+      // A "failed" outcome here is a deliberate nurse cancellation/rejection
+      // of the confirmation — not an error, so it's left silent by design:
+      // the input stays as typed so the nurse can retry, matching how a
+      // cancelled confirmation modal elsewhere in the app just closes.
+    } catch (err) {
+      // An actual thrown failure (network/backend error) is different from a
+      // deliberate cancellation above — previously uncaught here, so it
+      // surfaced only as a console-level unhandled rejection with no
+      // visible feedback to the nurse at all.
+      setObsError(err instanceof Error ? err.message : String(err));
     } finally {
       setObsBusy(false);
     }
@@ -228,6 +240,11 @@ export function PatientWorkspace() {
             </Button>
             <span className="text-[11px] text-[var(--color-ink-faint)]">Timestamped automatically. You'll confirm before it's saved.</span>
           </div>
+          {obsError && (
+            <div className="mt-2 rounded-lg border border-[var(--color-critical-100)] bg-[var(--color-critical-50)] px-3 py-2 text-xs text-[var(--color-critical-600)]">
+              {obsError}
+            </div>
+          )}
         </div>
       </Card>
 

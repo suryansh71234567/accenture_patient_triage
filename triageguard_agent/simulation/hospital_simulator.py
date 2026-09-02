@@ -14,6 +14,7 @@ Coordinates:
 from __future__ import annotations
 import logging
 import random
+import threading
 from typing import Any, Dict, List, Optional
 
 from triageguard_agent.hospital.hospital_state_service import HospitalStateService
@@ -121,6 +122,20 @@ class HospitalSimulator:
         self.hospital_id = hospital_id or DEFAULT_HOSPITAL_ID
         self.events = EventEngine(start_hour=start_hour, start_minute=start_minute)
         self.patient_flow = PatientFlowManager()
+        # Guards every read-decide-write sequence that touches a department's
+        # occupied-bed counter: admit_patient()'s bed-occupy loop AND step()'s
+        # bed-release loop. state_service.get_state()/.apply_update() are
+        # each individually atomic, but the compound "read occupied, compute
+        # a new value, write it back" is not — confirmed by forced thread
+        # interleaving (Phase 6B) two ways: concurrent admits into the same
+        # department under-count occupancy, and — the more consequential
+        # finding — a concurrent step() (bed release) and admit_patient()
+        # (bed occupy) on the same department corrupt the SAME counter, since
+        # they are different methods and an admit-only lock does not protect
+        # step()'s side of that shared counter. Both must serialize through
+        # one lock. One lock per simulator (i.e. per hospital_id) is
+        # sufficient and doesn't serialize unrelated hospitals.
+        self._bed_state_lock = threading.Lock()
         # patient_ids currently populated by _inject_presimulated_patients,
         # so a later scenario switch can remove exactly this set (and only
         # this set) rather than wiping every patient — see that method.
@@ -331,10 +346,17 @@ class HospitalSimulator:
         for p in discharged_patients:
             dept = p.department
             if dept and dept != "DISCHARGE" and self.state_service.department_exists(dept):
-                curr_state = self.state_service.get_state(dept)
-                if curr_state and curr_state.get("occupied", 0) > 0:
-                    new_occ = max(0, curr_state["occupied"] - 1)
-                    self.state_service.apply_update(dept, {"occupied": new_occ})
+                # Same shared-counter read-decide-write as admit_patient()'s
+                # bed-occupy loop, on the same department — must serialize
+                # through the SAME lock, or a concurrent admit/step can race
+                # this release (confirmed by forced interleaving, Phase 6B).
+                with self._bed_state_lock:
+                    curr_state = self.state_service.get_state(dept)
+                    released = curr_state and curr_state.get("occupied", 0) > 0
+                    if released:
+                        new_occ = max(0, curr_state["occupied"] - 1)
+                        self.state_service.apply_update(dept, {"occupied": new_occ})
+                if released:
                     self.events.emit(
                         EventType.BED_OPENED,
                         f"Bed released in {dept} (Occupancy: {new_occ}/{curr_state['capacity']})",
@@ -746,32 +768,49 @@ class HospitalSimulator:
         """
         Commit patient admission, occupying a bed in the department and updating load.
         """
-        patient = self.patient_flow.get_patient(patient_id)
-        if not patient:
-            raise KeyError(f"Patient {patient_id!r} not found in simulation.")
+        # The occupancy read-decide-write below is a compound operation that
+        # state_service's own per-call locking cannot make atomic on its
+        # own — see _bed_state_lock's docstring in __init__. Also covers a
+        # same-patient double-admit (e.g. a rapid double-click) from
+        # double-incrementing occupancy for one physical bed.
+        with self._bed_state_lock:
+            patient = self.patient_flow.get_patient(patient_id)
+            if not patient:
+                raise KeyError(f"Patient {patient_id!r} not found in simulation.")
+            # Pre-existing gap surfaced by concurrency testing (Phase 6B),
+            # not itself a race: nothing previously stopped a second admit
+            # of an already-admitted patient (e.g. a rapid double-click)
+            # from silently consuming a second bed for one physical patient.
+            # Same rejected-status set and wording as triage_patient()'s
+            # existing already-admitted guard, for consistency.
+            if patient.status in (PatientStatus.IN_TREATMENT, PatientStatus.DISCHARGED, PatientStatus.TRANSFERRED):
+                raise ValueError(
+                    f"Patient {patient_id!r} is {patient.status.value} — "
+                    "an already admitted/discharged/transferred patient cannot be admitted again."
+                )
 
-        # Determine target department
-        target_dept = (
-            department
-            or (patient.operational_decision or {}).get("operational_department")
-            or (patient.clinical_assessment or {}).get("department")
-            or "ADMITTED_GEN"
-        )
+            # Determine target department
+            target_dept = (
+                department
+                or (patient.operational_decision or {}).get("operational_department")
+                or (patient.clinical_assessment or {}).get("department")
+                or "ADMITTED_GEN"
+            )
 
-        # Occupy bed in state service if not DISCHARGE
-        if target_dept != "DISCHARGE" and self.state_service.department_exists(target_dept):
-            curr = self.state_service.get_state(target_dept)
-            if curr:
-                if curr["occupied"] >= curr["capacity"]:
-                    logger.warning(
-                        "Admitting patient %s to %s above capacity (%d/%d).",
-                        patient_id, target_dept, curr["occupied"], curr["capacity"],
-                    )
-                new_occ = min(curr["capacity"], curr["occupied"] + 1)
-                self.state_service.apply_update(target_dept, {"occupied": new_occ})
+            # Occupy bed in state service if not DISCHARGE
+            if target_dept != "DISCHARGE" and self.state_service.department_exists(target_dept):
+                curr = self.state_service.get_state(target_dept)
+                if curr:
+                    if curr["occupied"] >= curr["capacity"]:
+                        logger.warning(
+                            "Admitting patient %s to %s above capacity (%d/%d).",
+                            patient_id, target_dept, curr["occupied"], curr["capacity"],
+                        )
+                    new_occ = min(curr["capacity"], curr["occupied"] + 1)
+                    self.state_service.apply_update(target_dept, {"occupied": new_occ})
 
-        # Update patient status and add to admitted cohort
-        self.patient_flow.admit_patient(patient, target_dept, custom_los_min)
+            # Update patient status and add to admitted cohort
+            self.patient_flow.admit_patient(patient, target_dept, custom_los_min)
 
         # Recalculate hospital load
         load_info = self.load_controller.recalculate(self.state_service.get_all())

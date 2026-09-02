@@ -12,6 +12,7 @@ Exposes tools to:
 
 from __future__ import annotations
 import logging
+import threading
 from typing import Any, Dict, Optional
 
 from triageguard_agent.schemas.tool_result import ToolResult
@@ -26,6 +27,15 @@ logger = logging.getLogger(__name__)
 # pattern the registry itself uses for HospitalStateService instances).
 _simulator_instances: Dict[str, HospitalSimulator] = {}
 
+# Guards the check-then-construct-then-cache sequence in get_simulator()/
+# reset_simulator() — confirmed racy under forced concurrent interleaving
+# (Phase 6B): two concurrent first-touches of the same not-yet-cached
+# hospital_id can both observe "not present", both construct a fresh
+# HospitalSimulator, and the second's dict-write silently discards the
+# first's already-returned instance (any mutation a caller made through the
+# discarded one is lost the moment the winning instance is cached).
+_simulator_lock = threading.Lock()
+
 
 def _key(hospital_id: Optional[str]) -> str:
     from triageguard_agent.hospital.hospital_registry import DEFAULT_HOSPITAL_ID
@@ -35,9 +45,10 @@ def _key(hospital_id: Optional[str]) -> str:
 def get_simulator(hospital_id: Optional[str] = None) -> HospitalSimulator:
     """Return or initialize the shared HospitalSimulator instance for this hospital."""
     key = _key(hospital_id)
-    if key not in _simulator_instances:
-        _simulator_instances[key] = HospitalSimulator(hospital_id=key)
-    return _simulator_instances[key]
+    with _simulator_lock:
+        if key not in _simulator_instances:
+            _simulator_instances[key] = HospitalSimulator(hospital_id=key)
+        return _simulator_instances[key]
 
 
 def reset_simulator(
@@ -46,8 +57,9 @@ def reset_simulator(
 ) -> HospitalSimulator:
     """Reset this hospital's simulator instance (test isolation / scenario switching)."""
     key = _key(hospital_id)
-    _simulator_instances[key] = HospitalSimulator(scenario=scenario_name, hospital_id=key)
-    return _simulator_instances[key]
+    with _simulator_lock:
+        _simulator_instances[key] = HospitalSimulator(scenario=scenario_name, hospital_id=key)
+        return _simulator_instances[key]
 
 
 # ---------------------------------------------------------------------------

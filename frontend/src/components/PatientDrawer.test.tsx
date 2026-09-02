@@ -67,6 +67,44 @@ describe("PatientDrawer", () => {
     expect(screen.getByText(/No longer in active queue/)).toBeInTheDocument();
   });
 
+  describe("DISCHARGED status", () => {
+    it("shows the real discharge department from the decision, not a fabricated one", () => {
+      renderDrawer({ status: "DISCHARGED", decision });
+      expect(screen.getByText("Discharged from ICU. No longer an active patient.")).toBeInTheDocument();
+    });
+
+    it("falls back to a generic discharged message when no decision is available (never invents a department)", () => {
+      renderDrawer({ status: "DISCHARGED" });
+      expect(screen.getByText("Discharged. No longer an active patient.")).toBeInTheDocument();
+    });
+
+    it("offers no triage controls for a discharged patient", () => {
+      const onTriage = vi.fn();
+      renderDrawer({ status: "DISCHARGED", decision, onTriage });
+      expect(screen.queryByText("Triage Patient")).not.toBeInTheDocument();
+    });
+
+    it("offers no Update Vitals or Admit action for a discharged patient — no fabricated active queue", () => {
+      const onEditVitals = vi.fn();
+      const onAdmit = vi.fn();
+      renderDrawer({ status: "DISCHARGED", decision, onEditVitals, onAdmit });
+      expect(screen.queryByText("Update Vitals")).not.toBeInTheDocument();
+      expect(screen.queryByText(/^Admit to/)).not.toBeInTheDocument();
+    });
+
+    it("does not show the AI Recommendation / Current Queue cards — those only apply while TRIAGED", () => {
+      renderDrawer({ status: "DISCHARGED", decision });
+      expect(screen.queryByText("AI Recommendation")).not.toBeInTheDocument();
+      expect(screen.queryByText("Current Queue")).not.toBeInTheDocument();
+    });
+
+    it("still shows the real chart vitals for a discharged patient", () => {
+      renderDrawer({ status: "DISCHARGED", decision, vitals: [{ label: "HR", value: 88 }] });
+      expect(screen.getByText("HR")).toBeInTheDocument();
+      expect(screen.getByText("88")).toBeInTheDocument();
+    });
+  });
+
   it("switches to the Record tab and links to the full workspace", () => {
     renderDrawer({ status: "TRIAGED", decision });
     fireEvent.click(screen.getByText("Record"));
