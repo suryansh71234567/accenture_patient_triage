@@ -336,3 +336,7 @@ python scripts/chat_with_agent.py
 ## 19. Conclusion
 
 TriageGuard demonstrates that clinical risk assessment and hospital operational routing can be built as genuinely separable concerns — a quantitative model and a historical-reasoning model produce a clinical picture that never changes with bed availability, while a hospital-specific, nurse-calibrated policy decides allocation under a hard safety gate. That separation, combined with a `hospital_id` boundary threaded consistently through configuration, state, retrieval, calibration, and routing, lets the same engineering effort serve one hospital or many without duplicating logic — the core requirement for a system meant to generalize beyond a single deployment.
+
+## 20. Dataset Used
+
+Our model is trained on real world patient from data of MIMIC IV
